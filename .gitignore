@@ -1,0 +1,54 @@
+### IntelliJ IDEA ###
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+.kotlin
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store
+
+### 构建工具与依赖（体积大，无需提交） ###
+# 编译产物
+build/
+target/
+*.class
+
+### IntelliJ IDEA 本地私密配置（含数据库密码，绝对不要提交） ###
+.idea/dataSources.local.xml
+.idea/dataSources.*.xml
+.idea/workspace.xml
+.idea/shelf/
+.idea/httpRequests/
+
+### Node / 前端构建产物 ###
+node_modules/
+dist/
+dist-ssr/
+
+### 敏感信息（不得提交数据库密码、令牌、密钥） ###
+*.env
+.env.local
+application-local.yml
+application-local.properties
