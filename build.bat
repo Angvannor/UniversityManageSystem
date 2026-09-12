@@ -2,21 +2,18 @@
 rem ===========================================================================
 rem  File: build.bat
 rem  Purpose: compile and run the Campus Activity Management System
-rem           (plain Java console program, no framework).
-rem
-rem  Why javac instead of Maven/Gradle:
-rem    This project uses no web framework. Third-party jars (MySQL JDBC driver,
-rem    bcrypt) are placed in lib/, so plain javac is enough and simpler to set up.
+rem           (plain Java console program, JDBC + MySQL, no framework).
 rem
 rem  Usage:
-rem    build.bat            compile and run
-rem    build.bat compile    compile only
-rem    build.bat clean      delete build output and recompile
+rem    build.bat                  compile and run the console program
+rem    build.bat compile          compile only
+rem    build.bat DBUtil           compile then run DBUtil self-test
+rem    build.bat clean            delete build output and recompile
 rem
 rem  Layout:
-rem    src/             Java source files
-rem    lib/             third-party jars
-rem    build/classes    compiled classes
+rem    src/                     Java source files (package com.hbk.activity)
+rem    lib/                     third-party jars (MySQL JDBC driver)
+rem    build/classes            compiled classes
 rem ===========================================================================
 setlocal enabledelayedexpansion
 
@@ -62,10 +59,19 @@ echo Compile OK. Output: %OUT%
 
 if /i "%~1"=="compile" exit /b 0
 
+if /i "%~1"=="DBUtil" (
+    echo.
+    echo Running DBUtil self-test ...
+    chcp 65001 >nul
+    java -Dfile.encoding=UTF-8 -cp "%CP%" com.hbk.activity.util.DBUtil
+    exit /b 0
+)
+
 echo.
 echo ============================================
-echo  Running ...
+echo  Running console program ...
 echo ============================================
-java -Dfile.encoding=UTF-8 -cp "%CP%" Main
+chcp 65001 >nul
+java -Dfile.encoding=UTF-8 -cp "%CP%" com.hbk.activity.ui.MainMenu
 
 endlocal
