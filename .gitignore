@@ -55,3 +55,6 @@ application-local.properties
 
 ### IntelliJ IDEA 数据源自省状态（无需提交） ###
 .idea/dataSources/
+
+### 数据库真实连接配置（含密码，禁止提交） ###
+config/db.properties

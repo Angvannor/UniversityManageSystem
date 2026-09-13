@@ -118,7 +118,26 @@ Get-Content db\schema.sql -Encoding utf8 | & "E:\MySQL\MySQL Server 8.0\bin\mysq
 
 脚本开头的 `DROP TABLE IF EXISTS` 允许反复执行，每次重建空表和初始账号。
 
-### 2. 编译并运行
+### 2. 配置数据库连接
+
+数据库密码不写在代码里（对应任务说明书「不得提交密码等敏感信息」的要求），
+需要从模板复制一份本地配置并填写自己的密码：
+
+```powershell
+copy config\db.properties.example config\db.properties
+```
+
+然后编辑 `config\db.properties`，把 `db.password` 改成自己的 MySQL 密码：
+
+```properties
+db.url=jdbc:mysql://localhost:3306/campus_activity?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+db.username=root
+db.password=你的MySQL密码
+```
+
+`config/db.properties` 已加入 `.gitignore`，只保存在本机，不会被提交到仓库。
+
+### 3. 编译并运行
 
 ```powershell
 .\build.bat
@@ -127,15 +146,13 @@ Get-Content db\schema.sql -Encoding utf8 | & "E:\MySQL\MySQL Server 8.0\bin\mysq
 其它可用命令：
 
 ```powershell
-.\build.bat compile                                 只编译
-.\build.bat run com.hbk.activity.tool.AuthServiceTest   编译后运行指定类
-.\build.bat clean                                   清理编译产物
+.\build.bat compile                                   只编译
+.\build.bat DBUtil                                   数据库连接自检
+.\build.bat run com.hbk.activity.tool.AuthServiceTest 编译后运行指定类
+.\build.bat clean                                     清理编译产物
 ```
 
-数据库账号密码配置在 `src/com/hbk/activity/util/DBUtil.java` 中的
-`USERNAME` / `PASSWORD` 两个常量里，换机器时只需改这两处。
-
-### 3. 演示账号
+### 4. 演示账号
 
 | 账号 | 密码 | 角色 |
 | --- | --- | --- |
@@ -149,7 +166,7 @@ Get-Content db\schema.sql -Encoding utf8 | & "E:\MySQL\MySQL Server 8.0\bin\mysq
 .\build.bat run com.hbk.activity.util.PasswordUtil 新密码
 ```
 
-### 4. 运行测试（需要 MySQL 已启动）
+### 5. 运行测试（需要 MySQL 已启动）
 
 ```powershell
 .\build.bat run com.hbk.activity.tool.AuthServiceTest

@@ -43,15 +43,27 @@ public final class DBUtil {
 
     // ------------------------------------------------------------------
     // 1. 数据库连接参数
-    //    说明：这里写死了本机的连接信息，作业项目这样做最省事；
-    //         真实项目会放到配置文件里读取，避免把密码写进代码。
+    //
+    //    安全说明（对应任务说明书「不得提交密码等敏感信息」的要求）：
+    //    数据库密码不再写死在代码里，而是从 config/db.properties 读取。
+    //    真实配置文件已加入 .gitignore，不会进入 Git 仓库；
+    //    仓库里只保留 config/db.properties.example 模板。
+    //    首次使用请先复制模板并填写密码：
+    //        copy config\db.properties.example config\db.properties
     // ------------------------------------------------------------------
 
     /** MySQL 驱动类名（MySQL 8 的驱动类是 com.mysql.cj.jdbc.Driver） */
     private static final String DRIVER = "com.mysql.cj.jdbc.Driver";
 
-    /** 连接地址：库名 campus_activity，参数说明见下面注释 */
-    private static final String URL =
+    /** 外部配置文件的候选路径（按顺序查找，支持不同工作目录下运行） */
+    private static final String[] CONFIG_CANDIDATES = {
+            "config/db.properties",
+            "../config/db.properties",
+            "db.properties"
+    };
+
+    /** 连接地址默认值：未提供配置文件时使用 */
+    private static final String DEFAULT_URL =
             "jdbc:mysql://localhost:3306/campus_activity"
                     // useUnicode + characterEncoding：保证中文正常读写，不出现乱码
                     + "?useUnicode=true&characterEncoding=utf8"
@@ -62,17 +74,22 @@ public final class DBUtil {
                     // allowPublicKeyRetrieval：允许获取公钥，配合 MySQL 8 的加密认证方式
                     + "&allowPublicKeyRetrieval=true";
 
-    /** 数据库用户名 */
-    private static final String USERNAME = "root";
+    /** 数据库用户名默认值 */
+    private static final String DEFAULT_USERNAME = "root";
 
-    /** 数据库密码：与 db/schema.sql 使用同一个 MySQL 账号 */
-    private static final String PASSWORD = "shuaizixia070711";
+    // 以下三个变量会被 loadConfig() 用配置文件中的内容覆盖，
+    // 因此不能声明为 final
+    private static String url = DEFAULT_URL;
+    private static String username = DEFAULT_USERNAME;
+    /** 数据库密码：默认为空，必须由 config/db.properties 提供 */
+    private static String password = "";
 
     // ------------------------------------------------------------------
-    // 2. 加载驱动
+    // 2. 加载配置与驱动
     //    静态代码块在类第一次被使用时执行，且只执行一次。
     // ------------------------------------------------------------------
     static {
+        loadConfig();
         try {
             // Class.forName 会把驱动类加载到内存并注册到 DriverManager，
             // 之后 DriverManager.getConnection 才知道该用哪个驱动连 MySQL。
@@ -83,6 +100,50 @@ public final class DBUtil {
             throw new ExceptionInInitializerError(
                     "数据库驱动加载失败，请确认 lib/mysql-connector-j-8.2.0.jar 已加入项目的 Libraries。原因：" + e.getMessage());
         }
+    }
+
+    /**
+     * 从外部配置文件读取数据库连接信息。
+     *
+     * <p>为什么把密码放在代码外面：任务说明书要求不得提交密码等敏感信息。
+     * 一旦密码进入代码并被提交，就会永久留在 Git 历史中。
+     *
+     * <p>找不到配置文件时给出明确提示，并继续使用默认的地址与用户名
+     * （此时密码为空，连接会失败并提示原因，便于使用者定位问题）。
+     */
+    private static void loadConfig() {
+        java.io.File configFile = null;
+        for (String path : CONFIG_CANDIDATES) {
+            java.io.File f = new java.io.File(path);
+            if (f.isFile()) {
+                configFile = f;
+                break;
+            }
+        }
+
+        if (configFile == null) {
+            System.out.println("[DBUtil] 未找到数据库配置文件 config/db.properties");
+            System.out.println("        请先复制模板并填写密码："
+                    + "copy config\\db.properties.example config\\db.properties");
+            return;
+        }
+
+        java.util.Properties props = new java.util.Properties();
+        try (java.io.Reader reader = new java.io.InputStreamReader(
+                new java.io.FileInputStream(configFile), java.nio.charset.StandardCharsets.UTF_8)) {
+            props.load(reader);
+        } catch (java.io.IOException e) {
+            System.out.println("[DBUtil] 读取配置文件失败：" + e.getMessage());
+            return;
+        }
+
+        url = props.getProperty("db.url", DEFAULT_URL);
+        username = props.getProperty("db.username", DEFAULT_USERNAME);
+        password = props.getProperty("db.password", "");
+
+        // 只打印来源与用户名，绝不打印密码
+        System.out.println("[DBUtil] 已读取数据库配置：" + configFile.getPath()
+                + "（用户：" + username + "，密码：已隐藏）");
     }
 
     /**
@@ -113,10 +174,12 @@ public final class DBUtil {
      */
     public static Connection getConnection() throws SQLException {
         try {
-            return DriverManager.getConnection(URL, USERNAME, PASSWORD);
+            // 使用 loadConfig() 从配置文件读到的连接信息
+            return DriverManager.getConnection(url, username, password);
         } catch (SQLException e) {
             // 换成更容易看懂的提示，再抛出异常让上层处理
-            throw new SQLException("数据库连接失败，请确认 MySQL80 服务已启动、账号密码正确。原始错误：" + e.getMessage(), e);
+            throw new SQLException("数据库连接失败，请确认 MySQL80 服务已启动、"
+                    + "且 config/db.properties 中的账号密码正确。原始错误：" + e.getMessage(), e);
         }
     }
 
