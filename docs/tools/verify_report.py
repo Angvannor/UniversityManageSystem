@@ -16,7 +16,7 @@ import xml.etree.ElementTree as ET
 
 CUR = r"E:\SoftwareEngineeringHomework\UniversityManageSystem\docs\原始材料文本\实验一_基于工程意图的软件迭代开发_实验报告模板.docx"
 BAK = CUR.replace(".docx", "_原始备份.docx")
-OUT = r"C:\Users\31028\AppData\Local\Temp\dsh-LTcJg5\verify.txt"
+OUT = r"E:\SoftwareEngineeringHomework\UniversityManageSystem\build\verify.txt"
 
 lines = []
 
