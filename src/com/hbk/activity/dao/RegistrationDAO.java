@@ -263,6 +263,41 @@ public class RegistrationDAO {
         }
     }
 
+    /**
+     * 删除某个活动的全部报名记录（包括已取消的）。
+     *
+     * <p>【为什么需要这个方法】
+     * 删除活动时会遇到外键约束问题：
+     * activity_registration.activity_id 有外键指向 activity.id，
+     * 只要表里还存在<b>任何一行</b>该活动的报名记录（哪怕状态是 CANCELLED），
+     * MySQL 就会拒绝删除活动，报：
+     * <pre>
+     *   Cannot delete or update a parent row: a foreign key constraint fails
+     * </pre>
+     * 因此业务层在删除活动前，要先调用本方法把该活动的报名记录（含已取消的）清干净。
+     * 这也是"Service 层需要编排多个 DAO"的一个典型场景。
+     *
+     * <p>注意与 {@link #updateStatus} 的区别：
+     * 学生取消报名用 updateStatus 改状态（保留记录）；
+     * 本方法只在"整个活动都要删掉"时使用。
+     *
+     * @param activityId 活动id
+     * @return 被删除的记录行数
+     */
+    public int deleteByActivityId(Long activityId) {
+        String sql = "DELETE FROM activity_registration WHERE activity_id = ?";
+
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setLong(1, activityId);
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
     // ==================================================================
     // 三、内部辅助方法
     // ==================================================================
