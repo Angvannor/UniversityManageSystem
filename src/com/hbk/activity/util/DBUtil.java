@@ -112,7 +112,12 @@ public final class DBUtil {
      * @throws SQLException 连接失败时抛出（账号密码错误、MySQL 服务未启动、库不存在等）
      */
     public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(URL, USERNAME, PASSWORD);
+        try {
+            return DriverManager.getConnection(URL, USERNAME, PASSWORD);
+        } catch (SQLException e) {
+            // 换成更容易看懂的提示，再抛出异常让上层处理
+            throw new SQLException("数据库连接失败，请确认 MySQL80 服务已启动、账号密码正确。原始错误：" + e.getMessage(), e);
+        }
     }
 
     /**
