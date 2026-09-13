@@ -51,4 +51,7 @@ dist-ssr/
 *.env
 .env.local
 application-local.yml
-application-local.properties.idea/dataSources/
+application-local.properties
+
+### IntelliJ IDEA 数据源自省状态（无需提交） ###
+.idea/dataSources/
