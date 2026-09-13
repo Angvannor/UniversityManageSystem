@@ -51,4 +51,4 @@ dist-ssr/
 *.env
 .env.local
 application-local.yml
-application-local.properties
+application-local.properties.idea/dataSources/
