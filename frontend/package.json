@@ -1,0 +1,24 @@
+{
+  "name": "university-manage-system-frontend",
+  "version": "2.0.0",
+  "private": true,
+  "description": "校园活动管理系统 V2.0 前端（Vue 3 + Vite + Vue Router + Pinia + Element Plus + Axios）",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.1",
+    "axios": "^1.7.7",
+    "element-plus": "^2.8.8",
+    "pinia": "^2.2.6",
+    "vue": "^3.5.13",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.0",
+    "vite": "^5.4.11"
+  }
+}

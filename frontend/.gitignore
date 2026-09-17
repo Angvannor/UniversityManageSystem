@@ -1,0 +1,25 @@
+### 依赖与构建产物（前端） ###
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+### 编辑器与系统文件 ###
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+### 日志 ###
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+### npm 本地缓存（安装依赖时生成） ###
+.npm-cache/

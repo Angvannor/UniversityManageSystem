@@ -1,0 +1,139 @@
+/* ============================================================================
+   文件：frontend/src/styles/global.css
+   用途：全局基础样式。定义页面容器、标题、筛选栏、卡片网格等通用类，
+         让各页面共享同一套视觉规范，避免每个 .vue 里重复写样式。
+   ============================================================================ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Microsoft YaHei', 'PingFang SC', Arial, sans-serif;
+  color: #303133;
+}
+
+/* ---------------------------- 页面容器 ---------------------------- */
+
+/* 页面内容容器：统一最大宽度与居中 */
+.page-container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* 页面标题区：左侧标题 + 右侧操作按钮 */
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.page-tip {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #909399;
+}
+
+/* 筛选 / 搜索栏 */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+/* ---------------------------- 卡片网格 ---------------------------- */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+/* 活动卡片内的信息行 */
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #606266;
+  margin-bottom: 6px;
+}
+
+/* 卡片头部：标题 + 状态标签 */
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.card-title {
+  font-weight: 600;
+}
+
+/* 卡片底部按钮区 */
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ---------------------------- 登录 / 注册页 ---------------------------- */
+
+.auth-page {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 渐变背景，纯 CSS 实现，无需图片 */
+  background: linear-gradient(135deg, #1f4e8c 0%, #2d6cdf 50%, #6fa8ff 100%);
+}
+
+.auth-card {
+  width: 420px;
+  padding: 32px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+.auth-title {
+  margin: 0 0 4px;
+  font-size: 22px;
+  text-align: center;
+}
+
+.auth-subtitle {
+  margin: 0 0 24px;
+  font-size: 13px;
+  text-align: center;
+  color: #909399;
+}
+
+.auth-footer {
+  margin-top: 12px;
+  font-size: 13px;
+  text-align: center;
+  color: #606266;
+}
+
+.submit-btn {
+  width: 100%;
+}
+
+.demo-tip {
+  margin-top: 16px;
+}
