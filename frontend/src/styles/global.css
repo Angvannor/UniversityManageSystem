@@ -91,43 +91,102 @@ body,
   justify-content: space-between;
 }
 
-/* ---------------------------- 登录 / 注册页 ---------------------------- */
+/* ---------------------------- 登录 / 注册页（左右分栏） ---------------------------- */
 
 .auth-page {
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 24px;
   /* 渐变背景，纯 CSS 实现，无需图片 */
   background: linear-gradient(135deg, #1f4e8c 0%, #2d6cdf 50%, #6fa8ff 100%);
 }
 
-.auth-card {
-  width: 420px;
-  padding: 32px;
+/* 白色容器：左侧品牌区 + 右侧表单区 */
+.auth-box {
+  display: flex;
+  width: 880px;
+  max-width: 100%;
+  min-height: 540px;
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  border-radius: 16px;
+  overflow: hidden; /* 让子元素的圆角跟随容器 */
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.24);
+}
+
+/* 左侧品牌区：深蓝渐变，展示系统名称与功能亮点 */
+.auth-brand {
+  flex: 0 0 330px;
+  padding: 40px 32px;
+  color: #fff;
+  background: linear-gradient(160deg, #1f4e8c 0%, #24559b 55%, #2d6cdf 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.auth-brand .brand-title {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.5;
+  letter-spacing: 1px;
+}
+
+.auth-brand .brand-version {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 2px 10px;
+  font-size: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 10px;
+  opacity: 0.9;
+}
+
+/* 功能亮点列表 */
+.brand-features {
+  list-style: none;
+  margin: 32px 0 0;
+  padding: 0;
+}
+
+.brand-features li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  opacity: 0.92;
+}
+
+/* 右侧表单区 */
+.auth-form-area {
+  flex: 1;
+  min-width: 0; /* 防止内容撑破 flex 容器 */
+  padding: 40px 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .auth-title {
   margin: 0 0 4px;
   font-size: 22px;
-  text-align: center;
 }
 
 .auth-subtitle {
   margin: 0 0 24px;
   font-size: 13px;
-  text-align: center;
   color: #909399;
 }
 
 .auth-footer {
-  margin-top: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
   font-size: 13px;
   text-align: center;
   color: #606266;
+  border-top: 1px solid #f0f2f5;
 }
 
 .submit-btn {
@@ -136,4 +195,20 @@ body,
 
 .demo-tip {
   margin-top: 16px;
+}
+
+/* 窄屏（手机 / 小窗口）时隐藏品牌区，只保留表单 */
+@media (max-width: 760px) {
+  .auth-brand {
+    display: none;
+  }
+
+  .auth-box {
+    width: 440px;
+    min-height: auto;
+  }
+
+  .auth-form-area {
+    padding: 32px 24px;
+  }
 }

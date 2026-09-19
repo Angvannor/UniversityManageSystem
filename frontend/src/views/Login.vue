@@ -19,39 +19,53 @@
 -->
 <template>
   <div class="auth-page">
-    <div class="auth-card">
-      <h2 class="auth-title">校园活动管理系统</h2>
-      <p class="auth-subtitle">V2.0 · 学生浏览报名 / 教师发布管理</p>
+    <div class="auth-box">
+      <!-- 左侧品牌区：系统名称与功能亮点（窄屏会自动隐藏） -->
+      <aside class="auth-brand">
+        <h1 class="brand-title">校园活动<br />管理系统</h1>
+        <span class="brand-version">V2.0 · 前后端分离</span>
+        <ul class="brand-features">
+          <li><el-icon><Promotion /></el-icon>教师发布活动，学生在线报名</li>
+          <li><el-icon><Tickets /></el-icon>随时查看我的报名与报名状态</li>
+          <li><el-icon><UserFilled /></el-icon>学生与教师分权限管理</li>
+        </ul>
+      </aside>
 
-      <!-- 表单：ref 用于在 JS 里调用 validate()，rules 定义校验规则 -->
-      <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @keyup.enter="handleLogin">
-        <el-form-item label="账号" prop="username">
-          <el-input v-model="form.username" placeholder="请输入学号 / 工号" clearable>
-            <template #prefix><el-icon><User /></el-icon></template>
-          </el-input>
-        </el-form-item>
+      <!-- 右侧表单区 -->
+      <section class="auth-form-area">
+        <h2 class="auth-title">欢迎登录</h2>
+        <p class="auth-subtitle">请输入账号与密码</p>
 
-        <el-form-item label="密码" prop="password">
-          <el-input v-model="form.password" type="password" placeholder="请输入密码" show-password>
-            <template #prefix><el-icon><Lock /></el-icon></template>
-          </el-input>
-        </el-form-item>
+        <!-- 表单：ref 用于在 JS 里调用 validate()，rules 定义校验规则 -->
+        <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @keyup.enter="handleLogin">
+          <el-form-item label="账号" prop="username">
+            <el-input v-model="form.username" placeholder="请输入学号 / 工号" clearable>
+              <template #prefix><el-icon><User /></el-icon></template>
+            </el-input>
+          </el-form-item>
 
-        <el-button type="primary" class="submit-btn" :loading="loading" @click="handleLogin">
-          登录
-        </el-button>
-      </el-form>
+          <el-form-item label="密码" prop="password">
+            <el-input v-model="form.password" type="password" placeholder="请输入密码" show-password>
+              <template #prefix><el-icon><Lock /></el-icon></template>
+            </el-input>
+          </el-form-item>
 
-      <div class="auth-footer">
-        还没有账号？
-        <el-button link type="primary" @click="router.push('/register')">立即注册</el-button>
-      </div>
+          <el-button type="primary" class="submit-btn" :loading="loading" @click="handleLogin">
+            登录
+          </el-button>
+        </el-form>
 
-      <el-alert type="info" :closable="false" show-icon class="demo-tip">
-        <template #title>
-          演示账号：教师 teacher01 / 学生 student01，密码均为 123456
-        </template>
-      </el-alert>
+        <div class="auth-footer">
+          还没有账号？
+          <el-button link type="primary" @click="router.push('/register')">立即注册</el-button>
+        </div>
+
+        <el-alert type="info" :closable="false" show-icon class="demo-tip">
+          <template #title>
+            演示账号：教师 teacher01 / 学生 student01，密码均为 123456
+          </template>
+        </el-alert>
+      </section>
     </div>
   </div>
 </template>
