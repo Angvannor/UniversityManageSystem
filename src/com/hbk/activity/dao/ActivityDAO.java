@@ -150,18 +150,22 @@ public class ActivityDAO {
      * <ul>
      *   <li>字段列表里不写 id，由数据库自增生成；</li>
      *   <li>7 个 {@code ?} 的编号顺序必须与字段列表一致；</li>
-     *   <li>增删改一律使用 {@code executeUpdate()}，返回影响行数。</li>
+     *   <li>增删改一律使用 {@code executeUpdate()}，返回影响行数；</li>
+     *   <li>新增成功后会把数据库生成的主键回填到入参对象的 id 上
+     *       （Web 接口需要把新活动 id 返回给前端）。</li>
      * </ul>
      *
-     * @param activity 待新增的活动对象（id 不需要设置）
+     * @param activity 待新增的活动对象（id 不需要设置，插入后会被回填）
      * @return 影响行数：1 表示成功，0 表示失败
      */
     public int insert(Activity activity) {
         String sql = "INSERT INTO activity (title, description, location, start_time, end_time, status, teacher_id) "
                 + "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
+        // 第二个参数 Statement.RETURN_GENERATED_KEYS 告诉驱动：
+        // 插入完成后我要取回数据库生成的自增主键
         try (Connection conn = DBUtil.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+             PreparedStatement ps = conn.prepareStatement(sql, java.sql.Statement.RETURN_GENERATED_KEYS)) {
 
             // PreparedStatement 只有 setString / setLong / setObject 这类方法，
             // 没有 setTitle 这种按字段名命名的方法；第一个参数是 ? 的序号
@@ -174,7 +178,17 @@ public class ActivityDAO {
             ps.setString(6, activity.getStatus());
             ps.setLong(7, activity.getTeacherId());
 
-            return ps.executeUpdate();
+            int rows = ps.executeUpdate();
+
+            // 取回自增主键并回填到实体上，调用方之后就能用 activity.getId()
+            if (rows > 0) {
+                try (ResultSet keys = ps.getGeneratedKeys()) {
+                    if (keys.next()) {
+                        activity.setId(keys.getLong(1));
+                    }
+                }
+            }
+            return rows;
         } catch (SQLException e) {
             e.printStackTrace();
             return 0;

@@ -58,3 +58,6 @@ application-local.properties
 
 ### 数据库真实连接配置（含密码，禁止提交） ###
 config/db.properties
+
+### 提交用的打包文件（本地生成） ###
+*_提交包.zip

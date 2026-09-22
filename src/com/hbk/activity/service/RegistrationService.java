@@ -188,4 +188,40 @@ public class RegistrationService {
 
         return registrationDAO.findByActivityId(activityId);
     }
+
+    /**
+     * 统计某个活动当前的有效报名人数。
+     *
+     * <p>【接口层为什么需要它】
+     * 活动列表要显示"已报名 N 人"，而活动表本身不保存人数
+     * （人数是报名表算出来的，这样才不会有冗余数据不一致的问题）。
+     *
+     * <p>只统计状态为 REGISTERED 的记录，已取消的不计入。
+     *
+     * @param activityId 活动id
+     * @return 有效报名人数
+     */
+    public int countRegistered(Long activityId) {
+        return registrationDAO.countRegistered(activityId);
+    }
+
+    /**
+     * 判断某个学生是否已经报名某个活动。
+     *
+     * <p>【接口层为什么需要它】
+     * 活动列表要告诉前端"当前这个学生报没报过"，
+     * 前端据此把按钮显示成「已报名」还是「立即报名」。
+     *
+     * @param activityId 活动id
+     * @param studentId  学生id
+     * @return true 表示该学生当前处于已报名状态
+     */
+    public boolean hasRegistered(Long activityId, Long studentId) {
+        if (activityId == null || studentId == null) {
+            return false;
+        }
+        ActivityRegistration existing =
+                registrationDAO.findByActivityAndStudent(activityId, studentId);
+        return existing != null && STATUS_REGISTERED.equals(existing.getStatus());
+    }
 }

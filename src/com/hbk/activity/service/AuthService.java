@@ -82,4 +82,40 @@ public class AuthService {
         // 第4步：账号与密码都通过，返回用户对象（其中包含角色）
         return user;
     }
+
+    /**
+     * 根据用户 id 查询用户。
+     *
+     * <p>【接口层需要它的两个原因】
+     * <ol>
+     *   <li>Web 接口每次请求只带令牌，服务端要从令牌还原"当前用户是谁"，
+     *       拿到 id 后用它查出完整的用户对象（含角色）；</li>
+     *   <li>活动列表要显示"发布教师"的姓名，需要用教师 id 反查。</li>
+     * </ol>
+     *
+     * @param userId 用户 id
+     * @return 用户对象；id 为 null 或查不到时返回 null
+     */
+    public User getById(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return userDAO.findById(userId);
+    }
+
+    /**
+     * 根据账号查询用户。
+     *
+     * <p>接口层在注册成功后需要把新用户信息返回给前端（用于提示"注册成功，张三"），
+     * 而 register() 只返回"是否成功"，因此这里补一个按账号查询的方法。
+     *
+     * @param username 登录账号
+     * @return 用户对象；查不到时返回 null
+     */
+    public User getByUsername(String username) {
+        if (username == null || username.isBlank()) {
+            return null;
+        }
+        return userDAO.findByUsername(username.trim());
+    }
 }

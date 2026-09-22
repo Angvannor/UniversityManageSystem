@@ -15,8 +15,14 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import mockApi from './mock/mock-api.js'
 
-/** 是否使用本地假接口；后端接口层完成后改成 false 即可切到真接口 */
-const USE_MOCK = true
+/**
+ * 是否使用本地假接口。
+ * 后端接口层（com.hbk.activity.web）已完成，因此这里设为 false：
+ * 前端的 /api 请求会经 Vite 代理转发到 http://localhost:8080 的真后端。
+ *
+ * 如果要脱离后端单独调试前端界面，把它改回 true 即可（前端源码无需改动）。
+ */
+const USE_MOCK = false
 
 export default defineConfig({
   plugins: [

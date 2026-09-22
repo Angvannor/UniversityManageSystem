@@ -91,7 +91,10 @@ CREATE TABLE activity_registration (
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='活动报名表：学生与活动的多对多关系';
 
 -- ---------------------------------------------------------------------------
--- 5. 初始数据：一个教师账号、一个学生账号
+-- 5. 初始数据
+-- ---------------------------------------------------------------------------
+
+-- 5.1 用户：一个教师账号、一个学生账号
 --
 --    密码说明（对应报告约束「密码不以明文保存」）：
 --      下面 password 字段保存的是 SHA-256 加盐哈希后的密文，不是明文。
@@ -101,7 +104,23 @@ CREATE TABLE activity_registration (
 --        build.bat run com.hbk.activity.util.PasswordUtil 新密码
 --
 --    role 必须与程序中的角色常量一致：TEACHER / STUDENT。
--- ---------------------------------------------------------------------------
 INSERT INTO `user` (username, password, name, role)
 VALUES ('teacher01', '5cd539652c23db99e6f0233845bb5696f641d3ac985ca6f8164e62770b580483', '张老师', 'TEACHER'),
        ('student01', '5cd539652c23db99e6f0233845bb5696f641d3ac985ca6f8164e62770b580483', '李同学', 'STUDENT');
+
+-- 5.2 活动：3 条演示数据，覆盖三种状态
+--      teacher_id = 1 对应上面的 teacher01（发布教师）
+--      OPEN 可报名 / CLOSED 已关闭，用于验证前端按钮的三种显示情况
+INSERT INTO activity (title, description, location, start_time, end_time, status, teacher_id)
+VALUES ('程序设计大赛', '面向全校的算法与程序设计竞赛，欢迎同学报名参加。', '计算机学院 A301',
+        '2026-10-15 09:00:00', '2026-10-15 12:00:00', 'OPEN', 1),
+       ('校园歌手大赛', '校园文艺活动，报名后参加初赛选拔。', '大学生活动中心',
+        '2026-11-01 19:00:00', '2026-11-01 21:30:00', 'OPEN', 1),
+       ('篮球友谊赛', '院系之间的篮球友谊赛，报名已截止。', '体育馆',
+        '2026-09-20 15:00:00', '2026-09-20 17:00:00', 'CLOSED', 1);
+
+-- 5.3 报名记录：让 student01 预先报名「程序设计大赛」
+--      这样登录学生账号后，「我的报名」有数据可看，
+--      活动列表里该活动也会显示为「已报名」，便于演示按钮的禁用逻辑。
+INSERT INTO activity_registration (activity_id, student_id, register_time, status)
+VALUES (1, 2, '2026-09-10 10:20:00', 'REGISTERED');

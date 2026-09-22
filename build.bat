@@ -82,6 +82,18 @@ if /i "%~1"=="DBUtil" (
     exit /b 0
 )
 
+rem ---------------------------------------------------------------------------
+rem  web: start the V2.0 REST API server (JDK built-in HttpServer, port 8080)
+rem       frontend dev server proxies /api here
+rem ---------------------------------------------------------------------------
+if /i "%~1"=="web" (
+    echo.
+    echo Starting web API server on port 8080 ...
+    echo --------------------------------------------
+    java -Dfile.encoding=UTF-8 -cp "%CP%" com.hbk.activity.web.WebServerMain
+    exit /b 0
+)
+
 echo.
 echo ============================================
 echo  Running console program ...
