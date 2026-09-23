@@ -2,10 +2,16 @@
 
 > 实验一《基于工程意图的软件迭代开发》项目仓库
 >
-> | 版本 | 形态 | 技术栈 |
-> | --- | --- | --- |
-> | **V1.0** | 命令行控制台程序 | 纯 Java + JDBC + MySQL |
-> | **V2.0**（当前） | 前后端分离的 Web 应用 | Vue 3 + JDK 内置 HttpServer + JDBC + MySQL |
+> | 版本 | 形态 | 技术栈 | 说明 |
+> | --- | --- | --- | --- |
+> | **V1.0** | 命令行控制台程序 | 纯 Java + JDBC + MySQL | 实验一交付，已打 tag `v1.0` |
+> | **V1.5**（当前） | 前后端分离的 Web 应用 | Vue 3 + JDK 内置 HttpServer + JDBC + MySQL | **技术架构升级，需求未变** |
+> | **V2.0** | 同 V1.5 | 同 V1.5 | 实验二：按**需求访谈**结论迭代需求 |
+> | V3.0 | 同 V1.5 | 后端换 Spring Boot 3 | 计划中 |
+>
+> 说明：V1.5 只是把控制台界面换成了浏览器界面，**六项需求和业务规则一条都没改**，
+> 属于技术架构升级而非需求迭代，所以不占用 V2.0 这个版本号；
+> V2.0 留给实验二中「由需求访谈驱动」的那一版。
 
 ---
 
@@ -15,7 +21,7 @@
 
 > **教师发布活动 → 学生查看活动 → 学生报名 → 教师查看报名信息**
 
-V2.0 在保留 V1.0 控制台入口的同时，增加了 **Vue 3 前端** 和 **REST 接口层**，
+V1.5 在保留 V1.0 控制台入口的同时，增加了 **Vue 3 前端** 和 **REST 接口层**，
 形成前后端分离结构。两个入口（Web 与控制台）**共用同一套业务逻辑与数据访问代码** ——
 这正是 V1.0 分层设计带来的价值。
 
@@ -61,7 +67,7 @@ UniversityManageSystem/
 │   │   ├── AuthService.java               注册、登录、按 id/账号查询
 │   │   ├── ActivityService.java           发布、修改、关闭、删除、查询
 │   │   └── RegistrationService.java       报名、取消、我的报名、报名名单、人数统计
-│   ├── web/                               【V2.0】REST 接口层
+│   ├── web/                               【V1.5】REST 接口层
 │   │   ├── WebServerMain.java             启动类：HttpServer + 路由注册 + 线程池
 │   │   ├── ApiRouter.java                 路由匹配、令牌校验、异常转换、CORS、日志
 │   │   ├── RequestContext.java            请求上下文（路径/查询/请求体参数、当前用户）
@@ -81,7 +87,7 @@ UniversityManageSystem/
 │   └── tool/                              开发期验证工具（不属于系统正式功能）
 │       ├── UserDaoTest / ActivityDaoTest / RegistrationDaoTest      DAO 手工测试
 │       └── AuthServiceTest(19) / ActivityServiceTest(24) / RegistrationServiceTest(21)
-├── frontend/                              【V2.0】Vue 3 前端
+├── frontend/                              【V1.5】Vue 3 前端
 │   ├── package.json / vite.config.js / index.html
 │   ├── mock/mock-api.js                   本地假接口（脱离后端调试前端时使用）
 │   └── src/
@@ -102,7 +108,7 @@ UniversityManageSystem/
 ├── config/db.properties.example           数据库连接配置模板
 ├── docs/
 │   ├── 原始材料文本/                       实验报告 docx、任务说明 pdf
-│   ├── 版本升级路线图.md                     V2.0 / V3.0 的升级目标与验收标准
+│   ├── 版本升级路线图.md                     V1.5 / V2.0 / V3.0 的升级目标与验收标准
 │   └── tools/                             报告处理与校验的 Python 脚本
 ├── build.bat                              编译 + 运行脚本
 └── README.md                              本文件
@@ -114,9 +120,9 @@ UniversityManageSystem/
 浏览器（Vue 3，:5173）                控制台（MainMenu）        ← 两种界面
         │ HTTP /api/xxx                        │
         ▼                                      │
-  ApiRouter（路由/令牌/异常/JSON）              │              ← V2.0 新增
+  ApiRouter（路由/令牌/异常/JSON）              │              ← V1.5 新增
         ▼                                      │
-  AuthApi / ActivityApi / RegistrationApi      │              ← V2.0 新增
+  AuthApi / ActivityApi / RegistrationApi      │              ← V1.5 新增
         └──────────────┬───────────────────────┘
                        ▼
               业务逻辑层 Service（业务规则、编排 DAO）           ← V1.0 已存在，未改动
@@ -170,7 +176,7 @@ db.password=你的MySQL密码
 
 `config/db.properties` 已加入 `.gitignore`，只保存在本机，不会被提交。
 
-### 3. 启动后端（V2.0 方式：REST 接口服务）
+### 3. 启动后端（V1.5 方式：REST 接口服务）
 
 ```powershell
 .\build.bat web
@@ -179,7 +185,7 @@ db.password=你的MySQL密码
 看到下面这段说明启动成功（**这个窗口要保持运行**）：
 
 ```
-  校园活动管理系统 V2.0 —— 接口服务已启动
+  校园活动管理系统 V1.5 —— 接口服务已启动
   接口前缀： http://localhost:8080/api
   按 Ctrl+C 停止服务
 ```
@@ -313,21 +319,30 @@ student01 已预先报名「程序设计大赛」。
 - [x] 控制台菜单（主菜单 / 学生菜单 / 教师菜单）
 - [x] 64 个自动化测试用例
 
-### V2.0（前后端分离，已完成）
+### V1.5（前后端分离 = 技术架构升级，需求未变，已完成）
 - [x] REST 接口层（14 个接口 + 统一返回结构 + 令牌认证 + 角色校验 + CORS）
 - [x] Vue 3 前端工程（Vite + Router + Pinia + Element Plus + Axios）
 - [x] 7 个页面：登录、注册、浏览活动、活动详情、我的报名、活动管理、报名名单
 - [x] 前端路由守卫（未登录跳登录页、按角色限制页面）
 - [x] 本地假接口（脱离后端也能独立调试前端）
 - [x] 前端与真实后端联调通过
+- [x] 数据库密码外置到 `config/db.properties`（技术债 T2）
+
+### V2.0（实验二：需求演化的迭代版本，进行中）
+- [ ] 三个角色（学生 / 教师 / 系统管理员）的需求访谈
+- [ ] 访谈记录 → 用户故事 + 验收标准
+- [ ] 需求冲突消解、确定本轮范围
+- [ ] 影响分析（改了哪些文件、哪些没改、为什么）
+- [ ] 按新需求实现并回归测试（V1.5 的六项需求不得回归）
+- [ ] 实验二报告
 
 ---
 
 ## 九、后续版本规划（V3.0）
 
-V1.0 的分层结构已经支撑了 V2.0 的界面升级，V3.0 计划用 **Spring Boot 3**
+V1.0 的分层结构已经支撑了 V1.5 的界面升级，V3.0 计划用 **Spring Boot 3**
 替换手写的 HTTP 接口层与 JDBC 数据访问层，**前端不需要任何改动**。
-详细的升级目标、技术方案、验收标准，以及 V1.0/V2.0 遗留的技术债清单，见
+详细的升级目标、技术方案、验收标准，以及 V1.0/V1.5 遗留的技术债清单，见
 [`docs/版本升级路线图.md`](docs/版本升级路线图.md)。
 
 主要待办：接口层换 Spring Boot、DAO 换 MyBatis-Plus、令牌换 JWT、
@@ -338,5 +353,5 @@ V1.0 的分层结构已经支撑了 V2.0 的界面升级，V3.0 计划用 **Spri
 ## 十、团队与版本
 
 - 小组：HBK 组
-- 当前版本：V2.0
+- 当前版本：V1.5（V2.0 需求演化进行中）
 - 仓库：https://github.com/Angvannor/UniversityManageSystem

@@ -23,7 +23,7 @@
       <!-- 左侧品牌区：系统名称与功能亮点（窄屏会自动隐藏） -->
       <aside class="auth-brand">
         <h1 class="brand-title">校园活动<br />管理系统</h1>
-        <span class="brand-version">V2.0 · 前后端分离</span>
+        <span class="brand-version">V1.5 · 前后端分离</span>
         <ul class="brand-features">
           <li><el-icon><Promotion /></el-icon>教师发布活动，学生在线报名</li>
           <li><el-icon><Tickets /></el-icon>随时查看我的报名与报名状态</li>

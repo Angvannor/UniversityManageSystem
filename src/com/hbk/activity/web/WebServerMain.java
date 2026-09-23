@@ -8,9 +8,9 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
 
 /**
- * Web 接口服务启动类（V2.0 的新入口，与控制台入口 {@code ui.MainMenu} 并列）。
+ * Web 接口服务启动类（V1.5 的新入口，与控制台入口 {@code ui.MainMenu} 并列）。
  *
- * <p>【V2.0 的结构】
+ * <p>【V1.5 的结构】
  * <pre>
  *   WebServerMain（本类） ──┐
  *                          ├──> Service ──> DAO ──> JDBC ──> MySQL
@@ -98,7 +98,7 @@ public class WebServerMain {
     private static void printBanner() {
         System.out.println("""
                 ==========================================================
-                  校园活动管理系统 V2.0 —— 接口服务已启动
+                  校园活动管理系统 V1.5 —— 接口服务已启动
                 ----------------------------------------------------------
                   接口前缀： http://localhost:8080/api
                   监听端口： 8080（前端 Vite 的 /api 代理指向这里）

@@ -17,7 +17,7 @@
       <div class="logo">
         <el-icon :size="20"><School /></el-icon>
         <span>校园活动管理系统</span>
-        <el-tag size="small" effect="plain" class="version-tag">V2.0</el-tag>
+        <el-tag size="small" effect="plain" class="version-tag">V1.5</el-tag>
       </div>
 
       <div class="header-right">

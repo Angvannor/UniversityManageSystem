@@ -83,7 +83,7 @@ if /i "%~1"=="DBUtil" (
 )
 
 rem ---------------------------------------------------------------------------
-rem  web: start the V2.0 REST API server (JDK built-in HttpServer, port 8080)
+rem  web: start the V1.5 REST API server (JDK built-in HttpServer, port 8080)
 rem       frontend dev server proxies /api here
 rem ---------------------------------------------------------------------------
 if /i "%~1"=="web" (

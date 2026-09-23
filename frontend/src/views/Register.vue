@@ -21,7 +21,7 @@
       <!-- 左侧品牌区 -->
       <aside class="auth-brand">
         <h1 class="brand-title">校园活动<br />管理系统</h1>
-        <span class="brand-version">V2.0 · 前后端分离</span>
+        <span class="brand-version">V1.5 · 前后端分离</span>
         <ul class="brand-features">
           <li><el-icon><User /></el-icon>注册后即可浏览并报名校园活动</li>
           <li><el-icon><Promotion /></el-icon>教师账号可以发布与管理活动</li>

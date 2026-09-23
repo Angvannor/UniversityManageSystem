@@ -1,8 +1,8 @@
 {
   "name": "university-manage-system-frontend",
-  "version": "2.0.0",
+  "version": "1.5.0",
   "private": true,
-  "description": "校园活动管理系统 V2.0 前端（Vue 3 + Vite + Vue Router + Pinia + Element Plus + Axios）",
+  "description": "校园活动管理系统 V1.5 前端（Vue 3 + Vite + Vue Router + Pinia + Element Plus + Axios）",
   "type": "module",
   "scripts": {
     "dev": "vite",

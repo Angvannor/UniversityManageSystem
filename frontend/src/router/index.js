@@ -107,8 +107,8 @@ router.beforeEach((to) => {
 /** 后置钩子：把页面标题写入浏览器标签页 */
 router.afterEach((to) => {
   document.title = to.meta.title
-    ? `${to.meta.title} - 校园活动管理系统 V2.0`
-    : '校园活动管理系统 V2.0'
+    ? `${to.meta.title} - 校园活动管理系统 V1.5`
+    : '校园活动管理系统 V1.5'
 })
 
 export default router
