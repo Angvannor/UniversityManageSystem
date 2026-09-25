@@ -8,6 +8,8 @@ rem  Usage:
 rem    build.bat                           compile then run the console program
 rem    build.bat compile                   compile only
 rem    build.bat run com.hbk.xxx.SomeClass compile then run the given class
+rem    build.bat test-all                  compile then run all automated tests
+rem    build.bat web                       start the REST API server (port 8080)
 rem    build.bat DBUtil                    compile then run DBUtil self-test
 rem    build.bat clean                     delete build output
 rem
@@ -70,7 +72,7 @@ if /i "%~1"=="run" (
     echo.
     echo Running %~2 ...
     echo --------------------------------------------
-    java -Dfile.encoding=UTF-8 -cp "%CP%" %~2
+    java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 -cp "%CP%" %~2
     exit /b 0
 )
 
@@ -78,19 +80,57 @@ if /i "%~1"=="DBUtil" (
     echo.
     echo Running DBUtil self-test ...
     echo --------------------------------------------
-    java -Dfile.encoding=UTF-8 -cp "%CP%" com.hbk.activity.util.DBUtil
+    java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 -cp "%CP%" com.hbk.activity.util.DBUtil
     exit /b 0
 )
 
 rem ---------------------------------------------------------------------------
-rem  web: start the V1.5 REST API server (JDK built-in HttpServer, port 8080)
+rem  test-all: run every automated test class in sequence (V2.0)
+rem           Requires MySQL running and db/schema.sql already executed.
+rem           ApiV2SmokeTest is NOT included here because it needs the API
+rem           server running; run it separately with 'build.bat run'.
+rem ---------------------------------------------------------------------------
+if /i "%~1"=="test-all" (
+    echo.
+    echo ============================================
+    echo  Running all automated tests ...
+    echo ============================================
+    for %%t in (
+        com.hbk.activity.tool.UserDaoTest
+        com.hbk.activity.tool.ActivityDaoTest
+        com.hbk.activity.tool.RegistrationDaoTest
+        com.hbk.activity.tool.DaoV2SmokeTest
+        com.hbk.activity.tool.AuthServiceTest
+        com.hbk.activity.tool.ActivityServiceTest
+        com.hbk.activity.tool.RegistrationServiceTest
+        com.hbk.activity.tool.ServiceV2SmokeTest
+        com.hbk.activity.tool.RegressionV2Test
+    ) do (
+        echo.
+        echo --------------------------------------------
+        echo  %%t
+        echo --------------------------------------------
+        java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 -cp "%CP%" %%t
+    )
+    echo.
+    echo ============================================
+    echo  All tests finished.
+    echo  ApiV2SmokeTest needs the API server running:
+    echo    terminal 1: build.bat web
+    echo    terminal 2: build.bat run com.hbk.activity.tool.ApiV2SmokeTest
+    echo ============================================
+    exit /b 0
+)
+
+rem ---------------------------------------------------------------------------
+rem  web: start the V2.0 REST API server (JDK built-in HttpServer, port 8080)
 rem       frontend dev server proxies /api here
 rem ---------------------------------------------------------------------------
 if /i "%~1"=="web" (
     echo.
     echo Starting web API server on port 8080 ...
     echo --------------------------------------------
-    java -Dfile.encoding=UTF-8 -cp "%CP%" com.hbk.activity.web.WebServerMain
+    java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 -cp "%CP%" com.hbk.activity.web.WebServerMain
     exit /b 0
 )
 
@@ -98,6 +138,6 @@ echo.
 echo ============================================
 echo  Running console program ...
 echo ============================================
-java -Dfile.encoding=UTF-8 -cp "%CP%" com.hbk.activity.ui.MainMenu
+java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8 -cp "%CP%" com.hbk.activity.ui.MainMenu
 
 endlocal

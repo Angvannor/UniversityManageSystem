@@ -117,7 +117,37 @@ public class ServiceV2SmokeTest {
         User active = authService.login("student01", "123456");
         check("正常账号可以登录且未被停用", active != null && !active.isDisabled());
 
+        // 1.5 清理测试账号
+        //     【为什么要清理】不清的话第二次运行会走到"账号已存在"分支，
+        //     测试虽然还能过，但库里的垃圾数据会一直累积（技术债 T7）。
+        int deleted = deleteUserByUsername(TEST_STUDENT_USERNAME);
+        System.out.println("[清理] 删除测试账号 " + TEST_STUDENT_USERNAME + "（" + deleted + " 行）");
+        check("清理后测试账号不存在",
+                authService.getByUsername(TEST_STUDENT_USERNAME) == null);
+
         System.out.println();
+    }
+
+    /**
+     * 直接删除一个用户（仅测试清理用）。
+     *
+     * <p>UserDAO 没有 delete 方法 —— 正式功能里账号停用是改状态而不是删除
+     * （US-13），所以不能为了测试去给 DAO 加一个"删用户"的公开方法。
+     * 这里绕开 DAO 直接用 JDBC，与 RegistrationDaoTest 清理报名记录的做法一致。
+     *
+     * @param username 要删除的账号
+     * @return 被删除的行数
+     */
+    private static int deleteUserByUsername(String username) {
+        String sql = "DELETE FROM `user` WHERE username = ?";
+        try (java.sql.Connection conn = com.hbk.activity.util.DBUtil.getConnection();
+             java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, username);
+            return ps.executeUpdate();
+        } catch (java.sql.SQLException e) {
+            e.printStackTrace();
+            return 0;
+        }
     }
 
     // ==================================================================

@@ -332,18 +332,41 @@ npm run dev
 
 ## 七、测试
 
-业务逻辑层的自动化测试（需要 MySQL 已启动）：
+### 7.1 一次跑完全部测试
+
+需要 MySQL 已启动，且已执行过 `db/schema.sql`：
 
 ```powershell
-.\build.bat run com.hbk.activity.tool.AuthServiceTest          # 19 个用例
-.\build.bat run com.hbk.activity.tool.ActivityServiceTest      # 24 个用例
-.\build.bat run com.hbk.activity.tool.RegistrationServiceTest  # 21 个用例
+.\build.bat test-all
 ```
 
-测试自带数据清理，可以反复运行。
+它会依次运行 9 个测试类，共 **288 项断言**：
 
-接口层验证方式：启动 `build.bat web` 后，用 Postman 或浏览器直接调用上述接口，
-控制台会打印每个请求的访问日志，例如：
+| 层次 | 测试类 | 断言数 |
+| --- | --- | --- |
+| 数据访问层 | `UserDaoTest` / `ActivityDaoTest` / `RegistrationDaoTest` / `DaoV2SmokeTest` | 20 / 20 / 24 / 51 |
+| 业务层 | `AuthServiceTest` / `ActivityServiceTest` / `RegistrationServiceTest` | 19 / 24 / 21 |
+| 业务层（V2.0 新增规则） | `ServiceV2SmokeTest` / `RegressionV2Test` | 61 / 48 |
+
+### 7.2 接口层测试（需要服务先跑起来）
+
+```powershell
+# 终端1
+.\build.bat web
+# 终端2
+.\build.bat run com.hbk.activity.tool.ApiV2SmokeTest    # 78 项断言
+```
+
+它直接对真实 HTTP 服务发请求，覆盖业务层测不到的四类问题：
+**路由匹配、角色校验、返回结构、信息泄露**。
+
+### 7.3 说明
+
+- 所有测试**自带数据清理**（临时插入的活动 / 账号 / 报名记录测完就删），
+  可以反复运行，跑完库中零残留。
+- 全部测试合计 **366 项断言**。详细的用例表见
+  [`docs/作业2/V2.0测试用例.md`](docs/作业2/V2.0测试用例.md)。
+- 接口访问日志：启动 `build.bat web` 后控制台会打印每个请求的结果，例如：
 
 ```
 [22:41:03] OK   POST   /api/auth/login -> code=0 success (12ms)
@@ -379,8 +402,9 @@ npm run dev
 - [x] 阶段 2 实体与 DAO：新增字段与查询方法（53 项断言）
 - [x] 阶段 3 业务层：报名状态机、审核、候补递补、管理员业务（61 项断言）
 - [x] 阶段 4 接口层：14 → 21 个接口、新增 3 个错误码（78 项断言）
-- [ ] 阶段 5 前端：教师端审核与递补、学生端状态展示、管理员端两个页面
-- [ ] 阶段 6 测试：扩展测试与 V1.5 回归
+- [x] 阶段 5 前端：教师端审核与递补、学生端状态展示、管理员端两个页面
+- [x] 阶段 6 测试：10 个测试类共 366 项断言全部通过；V1.0 六项规则逐条回归
+- [x] 技术债 T6（DAO 测试改为断言式）、T7（测试数据污染）已清理
 - [ ] 阶段 7 收尾：报告、截图、打 tag `v2.0`
 - [ ] 实验二报告
 
