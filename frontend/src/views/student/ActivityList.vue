@@ -82,9 +82,26 @@
           <el-icon><UserFilled /></el-icon>
           <span>发布教师：{{ item.teacherName }}</span>
         </div>
+        <!-- V2.0：显示"名额"而不是笼统的报名总数。
+             学生访谈 S2 的原话是「有些热门活动确实很快就满了，我稍微晚一点看到，
+             基本就报不上了」—— 所以要把"还剩多少"直接摆在列表上。 -->
         <div class="meta-row">
           <el-icon><Tickets /></el-icon>
-          <span>已报名 {{ item.registeredCount }} 人</span>
+          <span>
+            {{ item.capacity == null ? '不限制人数' : `限 ${item.capacity} 人` }}
+            · 已确定 {{ item.confirmedCount }} 人
+            <span v-if="item.waitlistedCount > 0" class="quota-warn">
+              · 候补 {{ item.waitlistedCount }} 人
+            </span>
+          </span>
+        </div>
+
+        <!-- V2.0：参加条件直接列在卡片上。
+             学生访谈 S3 表明学生了解活动的唯一途径就是"列表 → 详情页"，
+             把条件放在列表上能让他们少点一次、早点知道自己能不能报。 -->
+        <div v-if="item.eligibility" class="meta-row">
+          <el-icon><InfoFilled /></el-icon>
+          <span class="eligibility">参加条件：{{ item.eligibility }}</span>
         </div>
 
         <!-- 卡片底部：操作按钮，按状态显示不同按钮 -->
@@ -92,8 +109,13 @@
           <div class="card-footer">
             <el-button link type="primary" @click="goDetail(item)">查看详情</el-button>
 
-            <!-- 情况一：已经报名 -->
-            <el-button v-if="item.joined" type="success" disabled>已报名</el-button>
+            <!-- 情况一：已经占位（待审核 / 候补 / 正式参加）
+                 按钮上直接显示自己的状态，而不是笼统的"已报名"——
+                 学生访谈 S4 表明学生完全不知道自己是"在等审核"还是"在候补"，
+                 只看到"已报名"三个字会以为自己已经能参加了。 -->
+            <el-button v-if="item.joined" type="success" disabled>
+              {{ item.myStatusText || '已报名' }}
+            </el-button>
 
             <!-- 情况二：活动已关闭或已结束（注意 'OPEN' 要加引号，否则会被当成变量） -->
             <el-button v-else-if="item.status !== 'OPEN'" disabled>不可报名</el-button>
@@ -205,8 +227,11 @@ function goDetail(item) {
  */
 async function handleRegister(item) {
   // 二次确认：用户点"取消"会走 catch，直接 return 不做任何事
+  const tip = item.eligibility
+    ? `该活动的参加条件是：${item.eligibility}\n\n确认报名吗？报名后需要等老师审核。`
+    : '确认报名吗？报名后需要等老师审核。'
   try {
-    await ElMessageBox.confirm(`确认报名「${item.title}」吗？`, '报名确认', { type: 'info' })
+    await ElMessageBox.confirm(tip, '报名确认', { type: 'info' })
   } catch (e) {
     return
   }
@@ -214,8 +239,9 @@ async function handleRegister(item) {
   submittingId.value = item.id
   try {
     await registerActivity(item.id)
-    ElMessage.success('报名成功')
-    // ★ 关键：重新拉取数据，报名人数和按钮状态（已报名）才会更新
+    // V2.0：报名后不是"成功参加"，而是进入了待审核，提示语要说清楚
+    ElMessage.success('报名已提交，请等待老师审核')
+    // ★ 关键：重新拉取数据，名额与按钮状态（待老师审核）才会更新
     await loadActivities()
   } catch (e) {
     // 失败原因（如"你已经报名过该活动"）已由 axios 响应拦截器弹出
@@ -228,3 +254,19 @@ async function handleRegister(item) {
 // 组件挂载完成后加载一次数据（页面打开时自动刷新）
 onMounted(loadActivities)
 </script>
+
+<style scoped>
+/* 有候补时标橙，提示"这个活动很抢手" */
+.quota-warn {
+  color: #e6a23c;
+  font-weight: 600;
+}
+
+/* 参加条件可能比较长，限制成两行、超出省略 */
+.eligibility {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>

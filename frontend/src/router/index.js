@@ -1,7 +1,7 @@
 // ============================================================================
 // 文件：frontend/src/router/index.js
 // 用途：前端路由表与导航守卫。
-//   1. 定义页面路径与组件的映射（学生页面 / 教师页面）；
+//   1. 定义页面路径与组件的映射（学生页面 / 教师页面 / 管理员页面）；
 //   2. 守卫：未登录访问业务页面 → 跳登录页；
 //            已登录访问登录页  → 跳回各自首页；
 //            角色不匹配        → 跳回各自首页并提示。
@@ -13,8 +13,26 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 
+/**
+ * 按角色返回各自的首页。
+ *
+ * 【为什么必须写成函数，而不是直接写 '/activities'】
+ * 守卫里"角色不匹配 → 跳回首页"这条规则，如果首页固定写成学生的 /activities，
+ * 那么管理员访问 /activities 时会因为角色不符被弹回 /activities ——
+ * 自己跳自己，浏览器会报"检测到无限重定向"。V2.0 新增了第三种角色之后，
+ * 这个隐藏问题就暴露出来了。
+ *
+ * @param {string} role 角色：STUDENT / TEACHER / ADMIN
+ * @returns {string} 该角色的首页路径
+ */
+function homeOf(role) {
+  if (role === 'TEACHER') return '/teacher/activities'
+  if (role === 'ADMIN') return '/admin/activities'
+  return '/activities'
+}
+
 const routes = [
-  // 默认首页：按角色重定向
+  // 默认首页：先指向学生首页，再由守卫按角色纠正（见 homeOf 的说明）
   { path: '/', redirect: '/activities' },
 
   // ---------------------------- 公开页面 ----------------------------
@@ -65,6 +83,20 @@ const routes = [
     meta: { title: '报名名单', role: 'TEACHER' }
   },
 
+  // ---------------------------- 管理员页面（V2.0 新增） ----------------------------
+  {
+    path: '/admin/activities',
+    name: 'AdminActivities',
+    component: () => import('@/views/admin/ActivityOverview.vue'),
+    meta: { title: '活动总览', role: 'ADMIN' }
+  },
+  {
+    path: '/admin/users',
+    name: 'AdminUsers',
+    component: () => import('@/views/admin/UserManage.vue'),
+    meta: { title: '用户管理', role: 'ADMIN' }
+  },
+
   // 未匹配路径统一回首页
   { path: '/:pathMatch(.*)*', redirect: '/activities' }
 ]
@@ -84,7 +116,7 @@ router.beforeEach((to) => {
   if (to.meta.public) {
     // 已登录用户访问登录页 → 跳回自己的首页
     if (authStore.isLogin) {
-      return authStore.isTeacher ? '/teacher/activities' : '/activities'
+      return homeOf(authStore.user?.role)
     }
     return true
   }
@@ -96,9 +128,10 @@ router.beforeEach((to) => {
   }
 
   // 3. 角色不匹配 → 跳回该角色自己的首页
+  //    注意用 homeOf()，三种角色各自的首页都不同，写死会导致无限重定向
   if (to.meta.role && to.meta.role !== authStore.user?.role) {
     ElMessage.warning('当前角色无权访问该页面')
-    return authStore.isTeacher ? '/teacher/activities' : '/activities'
+    return homeOf(authStore.user?.role)
   }
 
   return true
@@ -107,8 +140,8 @@ router.beforeEach((to) => {
 /** 后置钩子：把页面标题写入浏览器标签页 */
 router.afterEach((to) => {
   document.title = to.meta.title
-    ? `${to.meta.title} - 校园活动管理系统 V1.5`
-    : '校园活动管理系统 V1.5'
+    ? `${to.meta.title} - 校园活动管理系统 V2.0`
+    : '校园活动管理系统 V2.0'
 })
 
 export default router

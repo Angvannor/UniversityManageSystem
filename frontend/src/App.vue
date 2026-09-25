@@ -4,7 +4,7 @@
   用途：根组件，整个界面的「外壳」。
     - 登录 / 注册页：直接渲染 router-view（全屏布局）；
     - 已登录：顶部栏 + 侧边菜单 + 内容区，
-      菜单项按角色（学生 / 教师）动态显示。
+      菜单项按角色（学生 / 教师 / 系统管理员）动态显示。
   ============================================================================
 -->
 <template>
@@ -17,12 +17,12 @@
       <div class="logo">
         <el-icon :size="20"><School /></el-icon>
         <span>校园活动管理系统</span>
-        <el-tag size="small" effect="plain" class="version-tag">V1.5</el-tag>
+        <el-tag size="small" effect="plain" class="version-tag">V2.0</el-tag>
       </div>
 
       <div class="header-right">
-        <el-tag :type="authStore.isTeacher ? 'warning' : 'success'" effect="dark" round>
-          {{ authStore.isTeacher ? '教师' : '学生' }}
+        <el-tag :type="roleTagType" effect="dark" round>
+          {{ authStore.roleText }}
         </el-tag>
         <span class="user-name">{{ authStore.user?.name }}</span>
         <el-button link type="primary" @click="handleLogout">退出登录</el-button>
@@ -34,7 +34,7 @@
       <el-aside width="200px" class="layout-aside">
         <el-menu :default-active="route.path" router>
           <!-- 学生菜单 -->
-          <template v-if="!authStore.isTeacher">
+          <template v-if="authStore.isStudent">
             <el-menu-item index="/activities">
               <el-icon><Search /></el-icon>
               <span>浏览活动</span>
@@ -46,7 +46,7 @@
           </template>
 
           <!-- 教师菜单 -->
-          <template v-else>
+          <template v-else-if="authStore.isTeacher">
             <el-menu-item index="/teacher/activities">
               <el-icon><Management /></el-icon>
               <span>活动管理</span>
@@ -54,6 +54,21 @@
             <el-menu-item index="/teacher/registrations">
               <el-icon><List /></el-icon>
               <span>报名名单</span>
+            </el-menu-item>
+          </template>
+
+          <!-- 管理员菜单（V2.0 新增）
+               注意这里必须用 v-else-if 而不是 v-else：
+               原来的写法是“是教师就显示教师菜单，否则显示学生菜单”，
+               新增第三种角色之后，管理员会被当成学生看到学生菜单。 -->
+          <template v-else-if="authStore.isAdmin">
+            <el-menu-item index="/admin/activities">
+              <el-icon><View /></el-icon>
+              <span>活动总览</span>
+            </el-menu-item>
+            <el-menu-item index="/admin/users">
+              <el-icon><UserFilled /></el-icon>
+              <span>用户管理</span>
             </el-menu-item>
           </template>
         </el-menu>
@@ -78,6 +93,13 @@ const authStore = useAuthStore()
 
 /** 登录页与注册页使用空白布局（不显示导航栏） */
 const isBlankLayout = computed(() => ['/login', '/register'].includes(route.path))
+
+/** 角色标签的颜色：教师橙色、管理员红色、学生绿色 */
+const roleTagType = computed(() => {
+  if (authStore.isTeacher) return 'warning'
+  if (authStore.isAdmin) return 'danger'
+  return 'success'
+})
 
 /** 退出登录：清空状态后回到登录页 */
 async function handleLogout() {

@@ -55,17 +55,28 @@
       <!-- 报名时间：19 个字符，宽度给足否则会被截断 -->
       <el-table-column prop="registerTime" label="报名时间" min-width="170" />
 
-      <el-table-column label="报名状态" width="110" align="center">
+      <!-- V2.0 新增：审核时间。
+           它在候补场景下也是"进入候补的时间"，是候补队列的排序依据，
+           学生看到它能明白自己大概排在什么位置。 -->
+      <el-table-column label="老师处理时间" min-width="170">
         <template #default="{ row }">
-          <el-tag :type="statusType(row.status)">{{ statusText(row.status) }}</el-tag>
+          <span v-if="row.reviewTime">{{ row.reviewTime }}</span>
+          <span v-else class="muted">待处理</span>
         </template>
       </el-table-column>
 
-      <el-table-column label="操作" width="140" align="center" fixed="right">
+      <el-table-column label="报名状态" width="130" align="center">
         <template #default="{ row }">
-          <!-- 已报名：可以取消 -->
+          <!-- V2.0：直接用后端返回的 statusText，五种状态的中文在三个界面里保持一致 -->
+          <el-tag :type="statusType(row.status)">{{ row.statusText }}</el-tag>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="操作" width="150" align="center" fixed="right">
+        <template #default="{ row }">
+          <!-- 占位状态（待审核 / 候补 / 正式参加）：可以取消 -->
           <el-button
-            v-if="row.status === 'REGISTERED'"
+            v-if="occupiesSlot(row.status)"
             type="danger"
             link
             :loading="cancellingId === row.activityId"
@@ -74,7 +85,7 @@
             取消报名
           </el-button>
 
-          <!-- 已取消：可以回到活动列表重新报名 -->
+          <!-- 未通过 / 已取消：可以回到详情页重新报名 -->
           <el-button v-else type="primary" link @click="goDetail(row)">重新报名</el-button>
         </template>
       </el-table-column>
@@ -120,21 +131,41 @@ async function loadData() {
 
 // ---------- 4. 界面辅助函数 ----------
 /**
- * 报名状态：英文 → 中文。
- * @param {string} status REGISTERED / CANCELLED
- * @returns {string}
+ * 判断某个状态是否"占着位置"（对应后端的 occupiesSlot()）。
+ *
+ * 待审核 / 候补 / 正式参加 这三种状态都算"报了名"，学生可以取消；
+ * 未通过（被老师驳回）和已取消不占位置，可以重新报名。
+ *
+ * 【为什么不直接判断某一个具体状态】
+ * V1.5 只有"已报名/已取消"两种，写成 `status === 'REGISTERED'` 没问题；
+ * V2.0 变成五种之后，如果这里漏写一种，就会出现"报名了却没有取消按钮"
+ * 或者"没报上却显示取消报名"的错误。把判断集中到一个函数里，只改一处。
+ *
+ * @param {string} status 报名状态
+ * @returns {boolean} true 表示可以取消
  */
-function statusText(status) {
-  return status === 'REGISTERED' ? '已报名' : '已取消'
+function occupiesSlot(status) {
+  return ['PENDING_REVIEW', 'WAITLISTED', 'CONFIRMED'].includes(status)
 }
 
 /**
  * 报名状态：英文 → 标签颜色。
- * @param {string} status REGISTERED / CANCELLED
- * @returns {string} success / info
+ *
+ * 中文文案不在这里映射 —— 后端每条记录都返回了 statusText，
+ * 直接用后端的值，保证学生端、教师端、管理员端三处的叫法完全一致。
+ *
+ * @param {string} status 五种报名状态之一
+ * @returns {string} Element Plus 的标签类型
  */
 function statusType(status) {
-  return status === 'REGISTERED' ? 'success' : 'info'
+  const map = {
+    PENDING_REVIEW: 'warning',
+    CONFIRMED: 'success',
+    WAITLISTED: 'warning',
+    REJECTED: 'danger',
+    CANCELLED: 'info'
+  }
+  return map[status] || 'info'
 }
 
 /**
@@ -162,7 +193,7 @@ async function handleCancel(row) {
   try {
     await cancelRegistration(row.activityId)
     ElMessage.success('已取消报名')
-    // 重新拉数据，状态标签才会从"已报名"变成"已取消"
+    // 重新拉数据，状态标签才会从"待老师审核/候补中/已确认参加"变成"已取消"
     await loadData()
   } finally {
     cancellingId.value = null
@@ -172,3 +203,10 @@ async function handleCancel(row) {
 // ---------- 6. 生命周期 ----------
 onMounted(loadData)
 </script>
+
+<style scoped>
+/* 表格里的次要文字（例如"待处理"） */
+.muted {
+  color: #909399;
+}
+</style>

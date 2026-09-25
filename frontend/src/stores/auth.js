@@ -2,8 +2,8 @@
 // 文件：frontend/src/stores/auth.js
 // 用途：登录状态管理（Pinia store）。集中保存：
 //   - token：登录令牌，持久化到 localStorage，刷新页面不丢失；
-//   - user ：当前登录用户（id / 账号 / 姓名 / 角色）。
-// 并通过 getter 提供 isLogin / isTeacher / isStudent，
+//   - user ：当前登录用户（id / 账号 / 姓名 / 角色 / 账号状态）。
+// 并通过 getter 提供 isLogin / isTeacher / isStudent / isAdmin，
 // 供路由守卫与 App.vue 的菜单显示使用。
 //
 // 对应报告「设计决策二」：前端按角色展示不同菜单，后端再做真正的权限校验。
@@ -36,7 +36,15 @@ export const useAuthStore = defineStore('auth', {
     /** 是否教师 */
     isTeacher: (state) => state.user?.role === 'TEACHER',
     /** 是否学生 */
-    isStudent: (state) => state.user?.role === 'STUDENT'
+    isStudent: (state) => state.user?.role === 'STUDENT',
+    /** 是否系统管理员（V2.0 新增的第三种角色） */
+    isAdmin: (state) => state.user?.role === 'ADMIN',
+    /** 角色中文名，用于顶栏显示 */
+    roleText: (state) => {
+      if (state.user?.role === 'TEACHER') return '教师'
+      if (state.user?.role === 'ADMIN') return '系统管理员'
+      return '学生'
+    }
   },
 
   actions: {

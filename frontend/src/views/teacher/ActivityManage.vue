@@ -52,9 +52,35 @@
         <template #default="{ row }">{{ row.startTime }} ~ {{ row.endTime }}</template>
       </el-table-column>
       <el-table-column prop="location" label="活动地点" min-width="130" show-overflow-tooltip />
-      <el-table-column label="报名人数" width="110" align="center">
-        <template #default="{ row }">{{ row.registeredCount }} 人</template>
+
+      <!-- V2.0：显示"已确定参加 / 人数上限"，而不是笼统的"报名人数"。
+           访谈 T1 的原话是「正式参加的人数不能超过这个活动能接待的上限，
+           我得随时看清已经确定参加的人数」—— 教师关心的是"已确定"，不是"报了多少"。 -->
+      <el-table-column label="名额" width="140" align="center">
+        <template #default="{ row }">
+          <span :class="{ 'quota-full': isFull(row) }">
+            {{ row.confirmedCount }} 人已确认
+          </span>
+          <div class="cell-sub">
+            {{ row.capacity == null ? '不限制人数' : `上限 ${row.capacity} 人` }}
+          </div>
+        </template>
       </el-table-column>
+
+      <el-table-column label="候补" width="80" align="center">
+        <template #default="{ row }">
+          <span v-if="row.waitlistedCount > 0" class="quota-warn">{{ row.waitlistedCount }} 人</span>
+          <span v-else class="cell-sub">—</span>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="参加条件" min-width="160" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span v-if="row.eligibility">{{ row.eligibility }}</span>
+          <span v-else class="cell-sub">无特殊条件</span>
+        </template>
+      </el-table-column>
+
       <el-table-column label="状态" width="100" align="center">
         <template #default="{ row }">
           <el-tag :type="statusType(row.status)">{{ statusText(row.status) }}</el-tag>
@@ -116,6 +142,37 @@
           </el-select>
         </el-form-item>
 
+        <!-- V2.0 新增：人数上限。
+             访谈 T8 的原话是「场地只能坐30人」——上限由每个活动的负责教师
+             根据场地、设备条件自己定，活动之间互不影响。
+             留空表示不限制人数（后端存 NULL），所以这里不能设成必填。 -->
+        <el-form-item label="人数上限" prop="capacity">
+          <el-input-number
+            v-model="form.capacity"
+            :min="1"
+            :max="99999"
+            :step="1"
+            placeholder="留空表示不限制"
+            style="width: 180px"
+          />
+          <span class="form-tip">留空表示不限制人数</span>
+        </el-form-item>
+
+        <!-- V2.0 新增：参加条件。
+             T4 的原话是「有些活动并不适合所有学生，具体条件要看活动本身」，
+             所以做成自由文本一句话说明；本轮不做结构化条件与自动判定
+             （最小假设 A3）。留空表示无特殊条件。 -->
+        <el-form-item label="参加条件" prop="eligibility">
+          <el-input
+            v-model="form.eligibility"
+            type="textarea"
+            :rows="2"
+            maxlength="500"
+            show-word-limit
+            placeholder="例如：面向全校本科生，需具备基础编程能力。留空表示无特殊条件"
+          />
+        </el-form-item>
+
         <el-form-item label="活动说明" prop="description">
           <el-input v-model="form.description" type="textarea" :rows="4" placeholder="请输入活动说明" />
         </el-form-item>
@@ -170,6 +227,9 @@ const form = reactive({
   location: '',
   description: '',
   status: 'OPEN',
+  // V2.0 新增：人数上限（null = 不限制）与参加条件（'' = 无特殊条件）
+  capacity: null,
+  eligibility: '',
   timeRange: [] // 时间选择器用的字符串数组 [开始, 结束]
 })
 
@@ -203,6 +263,8 @@ function openCreateDialog() {
     location: '',
     description: '',
     status: 'OPEN',
+    capacity: null,     // 默认不限制人数
+    eligibility: '',    // 默认无特殊条件
     timeRange: []
   })
   dialogVisible.value = true
@@ -219,6 +281,10 @@ function openEditDialog(row) {
     location: row.location,
     description: row.description,
     status: row.status,
+    // 后端返回的 capacity 可能就是 null（不限制人数），输入框能接受 null
+    capacity: row.capacity ?? null,
+    // 后端返回的 eligibility 可能就是 null，要转成空字符串给输入框
+    eligibility: row.eligibility ?? '',
     // 接口返回的是 startTime / endTime 两个字段，要拼回数组给时间选择器
     timeRange: [row.startTime, row.endTime]
   })
@@ -247,6 +313,12 @@ async function handleSubmit() {
     location: form.location,
     description: form.description,
     status: form.status,
+    // V2.0 新增两个字段。
+    // capacity 为 null 时不要写成空字符串 ''：后端用 Gson 把 JSON 转成 Integer，
+    // 传 "" 会转换失败，必须传真正的 null（或干脆不传这个字段）。
+    capacity: form.capacity || null,
+    // 参加条件留空时传 null 而不是 ''，语义更清楚（后端也会把纯空白规范成 null）
+    eligibility: form.eligibility?.trim() || null,
     startTime: form.timeRange[0],
     endTime: form.timeRange[1]
   }
@@ -330,6 +402,47 @@ function statusType(status) {
   return map[status] || 'info'
 }
 
+/**
+ * 判断活动是否已经满员（已确定参加人数达到上限）。
+ *
+ * 注意必须用 `capacity != null` 判断"有没有设上限"，
+ * 不能写 `capacity > 0` —— 未设上限时 capacity 是 null，
+ * 直接比较虽然 JS 不会报错，但语义上容易读错。
+ *
+ * @param {object} row 表格当前行
+ * @returns {boolean} true 表示已满员（未设上限时恒为 false）
+ */
+function isFull(row) {
+  return row.capacity != null && row.confirmedCount >= row.capacity
+}
+
 // ---------- 8. 生命周期 ----------
 onMounted(loadActivities)
 </script>
+
+<style scoped>
+/* 表格单元格里的次要说明文字（比正文小一号、颜色更浅） */
+.cell-sub {
+  font-size: 12px;
+  color: #909399;
+}
+
+/* 已满员：已确定人数标红，教师一眼能看出来这个活动报满了 */
+.quota-full {
+  color: #f56c6c;
+  font-weight: 600;
+}
+
+/* 有候补：标橙，提示教师"有人在排队" */
+.quota-warn {
+  color: #e6a23c;
+  font-weight: 600;
+}
+
+/* 表单项旁边的辅助说明 */
+.form-tip {
+  margin-left: 12px;
+  font-size: 12px;
+  color: #909399;
+}
+</style>
