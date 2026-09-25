@@ -13,6 +13,9 @@ rem    build.bat web                       start the REST API server (port 8080)
 rem    build.bat DBUtil                    compile then run DBUtil self-test
 rem    build.bat clean                     delete build output
 rem
+rem  NOTE: keep this file ASCII-only and CRLF-terminated. cmd relies on CRLF;
+rem        LF here makes cmd mis-parse multi-line blocks (e.g. the for in test-all).
+rem
 rem  Layout:
 rem    src/                  Java source files (package com.hbk.activity)
 rem    lib/                  third-party jars (MySQL JDBC driver)

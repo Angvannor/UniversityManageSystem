@@ -1,0 +1,13 @@
+# ============================================================================
+# 换行符约定
+#
+# *.bat / *.cmd 必须是 CRLF —— Windows 的 cmd 解析批处理时依赖 CRLF，
+# 如果是 LF，多行结构（尤其是跨行的 for 块）会被解析错乱。
+#
+# 本项目真的踩过这个坑：build.bat 变成 LF 之后，cmd 把多行 for 块
+# 解析成了几万行 "'e' is not recognized as an internal or external command"。
+#
+# 显式写出来是为了不依赖各人本机的 core.autocrlf 配置。
+# ============================================================================
+*.bat text eol=crlf
+*.cmd text eol=crlf
