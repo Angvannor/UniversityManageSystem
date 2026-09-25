@@ -895,8 +895,54 @@ def find_tables(body):
     return found
 
 
+def read_signature(path):
+    """读一个 docx 里「组员确认」表的电子签名格，返回文字（读不到就返回空串）。
+
+    【为什么要读它】报告填完之后需要本人在 Word 里签名。一旦签了名，
+    再跑本脚本就会用空白原版重新生成、**把签名冲掉**。
+    因此写文件之前先看一眼目标里有没有签名，有就拒绝覆盖（除非加 --force）。
+    """
+    if not os.path.exists(path):
+        return ""
+    try:
+        with zipfile.ZipFile(path) as z:
+            xml = z.read("word/document.xml")
+        body = ET.fromstring(xml).find(qn("body"))
+        for tbl in body.iter(qn("tbl")):
+            trs = tbl.findall(qn("tr"))
+            if not trs:
+                continue
+            header = "|".join(
+                "".join(para_text(p) for p in tc.findall(qn("p")))
+                for tc in trs[0].findall(qn("tc"))
+            )
+            if "电子签名" not in header:
+                continue
+            if len(trs) < 2:
+                return ""
+            cells = trs[1].findall(qn("tc"))
+            if len(cells) < 2:
+                return ""
+            return "".join(para_text(p) for p in cells[1].findall(qn("p"))).strip()
+    except Exception:
+        return ""
+
+
 def main():
     check_only = "--check" in sys.argv
+    force = "--force" in sys.argv
+
+    # ---------- 保护：已经签过名就不要覆盖 ----------
+    # 报告填完需要本人在 Word 里签名。签名之后如果又跑一次本脚本，
+    # 就会用空白原版重新生成，签名会被冲掉 —— 所以这里先检查、先拦住。
+    existing = read_signature(OUT)
+    if existing and not force:
+        print(f"⚠️ 目标文件里已经有电子签名：「{existing}」")
+        print(f"   {os.path.relpath(OUT, ROOT)}")
+        print("   重新填写会覆盖掉签名，因此本次没有执行。")
+        print("   如果确实要重新生成（之后需要重新签名），请加参数 --force：")
+        print("     python docs/tools/fill_report2.py --force")
+        return 1
 
     # ---------- 准备空白原版 ----------
     if not os.path.exists(BLANK):
