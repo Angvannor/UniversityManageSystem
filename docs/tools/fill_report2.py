@@ -42,16 +42,12 @@ TEMPLATE = os.path.join(ROOT, "docs", "作业2", "新建文件夹 (10)",
 # 固定从空白原版读，才能保证反复运行的结果完全一致。
 BLANK = os.path.join(ROOT, "docs", "作业2", "实验二_V2.0_实验报告模板_空白原版.docx")
 
-# 填写结果写回模板本身（文件名与老师给的一致，直接交这一份）
-OUT = TEMPLATE
-
-# 同时留一份在 git 里。
+# 填写结果写回模板本身。
 #
-# 【为什么要有这一份】老师给的模板放在「新建文件夹 (10)」里，那个目录
-# 按本组的约定不纳入版本控制（属于课程材料）。如果只写模板，
-# 报告内容就完全不在仓库里，无法通过 git 追溯。
-# 两份内容由同一个脚本、同一次运行写出，不会出现不一致。
-OUT_TRACKED = os.path.join(ROOT, "docs", "作业2", "实验二_V2.0_实验报告.docx")
+# 【为什么只写这一份】报告内容全部定义在本脚本里（下面的内容常量），
+# 随时可以重新生成，所以不需要再另外存一份 docx 做留档 ——
+# 多一份文件只会让人分不清该交哪个。
+OUT = TEMPLATE
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 XML_SPACE = "{http://www.w3.org/XML/1998/namespace}space"
@@ -1141,19 +1137,18 @@ def main():
         return
 
     entries["word/document.xml"] = new_xml
-    for target in (OUT, OUT_TRACKED):
-        rel = os.path.relpath(target, ROOT)
-        try:
-            os.makedirs(os.path.dirname(target), exist_ok=True)
-            with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as z:
-                for name, data in entries.items():
-                    z.writestr(name, data)
-            print(f"已写出：{rel}")
-        except PermissionError:
-            # 最常见的原因是这个 docx 正在 Word 里打开着 —— Windows 会锁住文件。
-            # 这种情况不应该让整个脚本失败：模板那一份才是要交的，已经写好了。
-            print(f"⚠️ 写入失败（文件被占用，可能正在 Word 中打开）：{rel}")
-            print("   请关闭该文档后重新运行本脚本。")
+    # 只写模板一份（报告内容都在本脚本里，随时可重新生成，不需要额外留档）
+    try:
+        os.makedirs(os.path.dirname(OUT), exist_ok=True)
+        with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED) as z:
+            for name, data in entries.items():
+                z.writestr(name, data)
+        print(f"\n已写出：{os.path.relpath(OUT, ROOT)}")
+    except PermissionError:
+        # 最常见的原因是这个 docx 正在 Word 里打开着 —— Windows 会锁住文件
+        print(f"\n❌ 写入失败（文件被占用，可能正在 Word 中打开）："
+              f"{os.path.relpath(OUT, ROOT)}")
+        print("   请关闭该文档后重新运行本脚本。")
 
 
 if __name__ == "__main__":

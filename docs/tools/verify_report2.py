@@ -25,11 +25,9 @@ import xml.etree.ElementTree as ET
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# 默认校验**填写后的模板**（这是实际要交的那一份）
+# 默认校验填写后的模板（这是实际要交的那一份）
 DEFAULT = os.path.join(ROOT, "docs", "作业2", "新建文件夹 (10)",
                        "实验二_V2.0_实验报告模板.docx")
-# 同时生成、用于 git 留档的副本
-TRACKED = os.path.join(ROOT, "docs", "作业2", "实验二_V2.0_实验报告.docx")
 
 # 命令行可以指定要校验的文件
 OUT = sys.argv[1] if len(sys.argv) > 1 else DEFAULT
