@@ -20,6 +20,8 @@ import java.time.LocalDateTime;
  *   activity.location    ->  Activity.location
  *   activity.start_time  ->  Activity.startTime     ← 数据库下划线，Java 驼峰
  *   activity.end_time    ->  Activity.endTime       ← 数据库下划线，Java 驼峰
+ *   activity.capacity    ->  Activity.capacity      （V2.0 新增，可为 NULL）
+ *   activity.eligibility ->  Activity.eligibility   （V2.0 新增，可为 NULL）
  *   activity.status      ->  Activity.status
  *   activity.teacher_id  ->  Activity.teacherId     ← 数据库下划线，Java 驼峰
  * </pre>
@@ -40,6 +42,16 @@ import java.time.LocalDateTime;
  *       只有 OPEN 状态才允许学生报名（对应报告「重要约束」）；</li>
  *   <li>{@code teacherId}：发布该活动的教师id，
  *       用于判断「教师只能管理自己发布的活动」。</li>
+ * </ul>
+ *
+ * <p>【V2.0 新增的两个字段】
+ * <ul>
+ *   <li>{@code capacity}（人数上限）：<b>用 Integer 而不是 int</b>，
+ *       因为数据库允许该列为 NULL，表示「不限制人数」。
+ *       如果用基本类型 int，NULL 会被读成 0，语义就变成了「一个人都不能报」—— 这是错的。
+ *       判断是否设了上限请用 {@link #hasCapacityLimit()}。</li>
+ *   <li>{@code eligibility}（参加条件）：自由文本，NULL 表示无特殊条件。
+ *       本轮按最小假设 A3 只做文本展示，系统不做结构化条件与自动判定。</li>
  * </ul>
  *
  * @author HBK组
@@ -64,6 +76,23 @@ public class Activity {
     /** 活动结束时间，对应 activity.end_time（数据库类型 DATETIME） */
     private LocalDateTime endTime;
 
+    /**
+     * 可接待人数上限，对应 activity.capacity（V2.0 新增）。
+     *
+     * <p>用包装类型 {@code Integer} 而不是 {@code int}：该列允许为 NULL，
+     * NULL 表示「不限制人数」。基本类型 int 无法表示 null，
+     * 会把 NULL 读成 0，语义变成"一个人都不能报"。
+     */
+    private Integer capacity;
+
+    /**
+     * 参加条件，对应 activity.eligibility（V2.0 新增）。
+     *
+     * <p>自由文本，由负责该活动的教师填写。为 NULL 表示无特殊条件，
+     * 界面应显示「无特殊条件」，而不是显示空白。
+     */
+    private String eligibility;
+
     /** 活动状态，对应 activity.status：OPEN / CLOSED / FINISHED */
     private String status;
 
@@ -85,11 +114,14 @@ public class Activity {
      * @param location    活动地点
      * @param startTime   开始时间
      * @param endTime     结束时间
+     * @param capacity    可接待人数上限，null 表示不限制
+     * @param eligibility 参加条件，null 表示无特殊条件
      * @param status      状态：OPEN / CLOSED / FINISHED
      * @param teacherId   发布活动的教师id
      */
     public Activity(Long id, String title, String description, String location,
                     LocalDateTime startTime, LocalDateTime endTime,
+                    Integer capacity, String eligibility,
                     String status, Long teacherId) {
         this.id = id;
         this.title = title;
@@ -97,6 +129,8 @@ public class Activity {
         this.location = location;
         this.startTime = startTime;
         this.endTime = endTime;
+        this.capacity = capacity;
+        this.eligibility = eligibility;
         this.status = status;
         this.teacherId = teacherId;
     }
@@ -153,6 +187,34 @@ public class Activity {
         this.endTime = endTime;
     }
 
+    public Integer getCapacity() {
+        return capacity;
+    }
+
+    public void setCapacity(Integer capacity) {
+        this.capacity = capacity;
+    }
+
+    public String getEligibility() {
+        return eligibility;
+    }
+
+    public void setEligibility(String eligibility) {
+        this.eligibility = eligibility;
+    }
+
+    /**
+     * 判断活动是否设置了人数上限。
+     *
+     * <p>业务层判断"要不要检查名额"时必须用它，而<b>不能</b>写成
+     * {@code getCapacity() > 0} —— 那样在 capacity 为 null 时会抛空指针异常。
+     *
+     * @return true 表示设置了上限（capacity 不为 null）
+     */
+    public boolean hasCapacityLimit() {
+        return capacity != null;
+    }
+
     public String getStatus() {
         return status;
     }
@@ -194,6 +256,8 @@ public class Activity {
                 + ", location='" + location + "'"
                 + ", startTime=" + startTime
                 + ", endTime=" + endTime
+                + ", capacity=" + capacity
+                + ", eligibility='" + eligibility + "'"
                 + ", status='" + status + "'"
                 + ", teacherId=" + teacherId
                 + "}";

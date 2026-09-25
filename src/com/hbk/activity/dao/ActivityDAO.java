@@ -44,9 +44,11 @@ public class ActivityDAO {
     /**
      * 查询时统一使用的字段列表。
      * 抽成常量，避免在多个方法里重复写同一串字段名（改字段时只需改一处）。
+     * V2.0 新增 capacity 与 eligibility 两个字段。
      */
     private static final String COLUMNS =
-            "id, title, description, location, start_time, end_time, status, teacher_id";
+            "id, title, description, location, start_time, end_time, "
+                    + "capacity, eligibility, status, teacher_id";
 
     // ==================================================================
     // 一、查询
@@ -149,7 +151,7 @@ public class ActivityDAO {
      * <p>要点：
      * <ul>
      *   <li>字段列表里不写 id，由数据库自增生成；</li>
-     *   <li>7 个 {@code ?} 的编号顺序必须与字段列表一致；</li>
+     *   <li>9 个 {@code ?} 的编号顺序必须与字段列表一致；</li>
      *   <li>增删改一律使用 {@code executeUpdate()}，返回影响行数；</li>
      *   <li>新增成功后会把数据库生成的主键回填到入参对象的 id 上
      *       （Web 接口需要把新活动 id 返回给前端）。</li>
@@ -159,8 +161,9 @@ public class ActivityDAO {
      * @return 影响行数：1 表示成功，0 表示失败
      */
     public int insert(Activity activity) {
-        String sql = "INSERT INTO activity (title, description, location, start_time, end_time, status, teacher_id) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO activity (title, description, location, start_time, end_time, "
+                + "capacity, eligibility, status, teacher_id) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         // 第二个参数 Statement.RETURN_GENERATED_KEYS 告诉驱动：
         // 插入完成后我要取回数据库生成的自增主键
@@ -175,8 +178,15 @@ public class ActivityDAO {
             // LocalDateTime 用 setObject 绑定最简单（不用手动转 Timestamp）
             ps.setObject(4, activity.getStartTime());
             ps.setObject(5, activity.getEndTime());
-            ps.setString(6, activity.getStatus());
-            ps.setLong(7, activity.getTeacherId());
+            // capacity 允许为 null（表示不限制人数）。
+            // 这里必须用三参数的 setObject(?, 值, 类型) 并显式给出 Types.INTEGER：
+            // 如果只写 setObject(6, null)，驱动不知道这个 null 该按什么类型发送，
+            // 某些版本会抛"参数类型未设置"的异常。
+            ps.setObject(6, activity.getCapacity(), java.sql.Types.INTEGER);
+            // setString 传 null 会自动写成 SQL NULL，不需要特殊处理
+            ps.setString(7, activity.getEligibility());
+            ps.setString(8, activity.getStatus());
+            ps.setLong(9, activity.getTeacherId());
 
             int rows = ps.executeUpdate();
 
@@ -198,15 +208,16 @@ public class ActivityDAO {
     /**
      * 修改活动信息（教师编辑活动，REQ-05）。
      *
-     * <p>SQL 里有 7 个 {@code ?}：前 6 个是要修改的字段，
-     * 第 7 个是 WHERE 条件里的活动id —— 顺序不能错。
+     * <p>SQL 里有 9 个 {@code ?}：前 8 个是要修改的字段，
+     * 第 9 个是 WHERE 条件里的活动id —— 顺序不能错。
      *
      * @param activity 带 id 的活动对象（id 用来定位要改哪一行）
      * @return 影响行数：1 表示成功，0 表示没有匹配的行
      */
     public int update(Activity activity) {
         String sql = "UPDATE activity SET title = ?, description = ?, location = ?, "
-                + "start_time = ?, end_time = ?, status = ? WHERE id = ?";
+                + "start_time = ?, end_time = ?, capacity = ?, eligibility = ?, status = ? "
+                + "WHERE id = ?";
 
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -216,9 +227,12 @@ public class ActivityDAO {
             ps.setString(3, activity.getLocation());
             ps.setObject(4, activity.getStartTime());
             ps.setObject(5, activity.getEndTime());
-            ps.setString(6, activity.getStatus());
-            // 第7个 ? 是 WHERE id = ?，填的是 Java 属性 activity.getId()
-            ps.setLong(7, activity.getId());
+            // 同 insert()：capacity 可能为 null，必须显式给出类型
+            ps.setObject(6, activity.getCapacity(), java.sql.Types.INTEGER);
+            ps.setString(7, activity.getEligibility());
+            ps.setString(8, activity.getStatus());
+            // 第9个 ? 是 WHERE id = ?，填的是 Java 属性 activity.getId()
+            ps.setLong(9, activity.getId());
 
             return ps.executeUpdate();
         } catch (SQLException e) {
@@ -299,6 +313,13 @@ public class ActivityDAO {
      * ResultSet 没有 getLocalDateTime 方法，必须先取 Timestamp 再转。
      * （start_time / end_time 在建表时是 NOT NULL，所以不必判空。）
      *
+     * <p>【capacity 的 NULL 处理（V2.0 新增，很容易踩坑）】
+     * capacity 列允许为 NULL，但 {@code rs.getInt("capacity")} 在遇到 NULL 时
+     * 返回的是 <b>0</b>，而不是抛异常 —— 这样"不限制人数"就变成了"一个人都不能报"。
+     * 正确做法是先 getInt，再用 {@code rs.wasNull()} 判断刚才读的是不是 NULL。
+     *
+     * <p>eligibility 是普通字符串列，{@code getString} 遇到 NULL 会返回 null，无需特殊处理。
+     *
      * @param rs 已经指向某一行的结果集
      * @return 转换后的活动对象
      * @throws SQLException 取值失败时抛出，由调用方的 try-catch 统一处理
@@ -311,6 +332,12 @@ public class ActivityDAO {
         activity.setLocation(rs.getString("location"));
         activity.setStartTime(rs.getTimestamp("start_time").toLocalDateTime());
         activity.setEndTime(rs.getTimestamp("end_time").toLocalDateTime());
+
+        // 先按 int 读，再问驱动"刚才读到的值是 NULL 吗"
+        int capacity = rs.getInt("capacity");
+        activity.setCapacity(rs.wasNull() ? null : capacity);
+
+        activity.setEligibility(rs.getString("eligibility"));
         activity.setStatus(rs.getString("status"));
         activity.setTeacherId(rs.getLong("teacher_id"));
         return activity;

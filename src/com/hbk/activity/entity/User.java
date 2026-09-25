@@ -14,7 +14,8 @@ package com.hbk.activity.entity;
  *   user.username ->  User.username
  *   user.password ->  User.password   （加密后的密文，不是明文）
  *   user.name     ->  User.name
- *   user.role     ->  User.role       （STUDENT 学生 / TEACHER 教师）
+ *   user.role     ->  User.role       （STUDENT 学生 / TEACHER 教师 / ADMIN 系统管理员）
+ *   user.status   ->  User.status     （ACTIVE 可用 / DISABLED 已停用）
  * </pre>
  *
  * <p>【设计说明】
@@ -41,8 +42,29 @@ public class User {
     /** 姓名，对应 user.name */
     private String name;
 
-    /** 角色，对应 user.role：STUDENT 学生 / TEACHER 活动组织教师 */
+    /** 角色，对应 user.role：STUDENT 学生 / TEACHER 活动组织教师 / ADMIN 系统管理员 */
     private String role;
+
+    /**
+     * 账号状态，对应 user.status：ACTIVE 可用 / DISABLED 已停用（V2.0 新增）。
+     *
+     * <p>【停用不是删除】停用只是把状态改成 DISABLED，账号和它的历史数据都保留，
+     * 效果是<b>不允许再登录</b>。系统管理员发现账号异常时可以停用，
+     * 问题处理完再恢复为 ACTIVE（对应 US-13）。
+     */
+    private String status;
+
+    // ------------------------------------------------------------------
+    // 账号状态常量：取值必须与 db/schema.sql 中 user.status 的注释完全一致。
+    // 抽成常量而不是在各处直接写字符串，可以避免拼错字母造成的隐蔽 bug
+    // （例如把 DISABLED 写成 DISBALED，编译能过但判断永远不成立）。
+    // ------------------------------------------------------------------
+
+    /** 账号状态：可用 */
+    public static final String STATUS_ACTIVE = "ACTIVE";
+
+    /** 账号状态：已停用，不能登录 */
+    public static final String STATUS_DISABLED = "DISABLED";
 
     /**
      * 无参构造方法。
@@ -58,14 +80,16 @@ public class User {
      * @param username 登录账号
      * @param password 密码（密文）
      * @param name     姓名
-     * @param role     角色：STUDENT / TEACHER
+     * @param role     角色：STUDENT / TEACHER / ADMIN
+     * @param status   账号状态：ACTIVE / DISABLED
      */
-    public User(Long id, String username, String password, String name, String role) {
+    public User(Long id, String username, String password, String name, String role, String status) {
         this.id = id;
         this.username = username;
         this.password = password;
         this.name = name;
         this.role = role;
+        this.status = status;
     }
 
     // ------------------------------------------------------------------
@@ -112,14 +136,38 @@ public class User {
         this.role = role;
     }
 
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    /**
+     * 判断账号是否已被停用。
+     *
+     * <p>登录时必须检查它：密码正确但账号已停用，仍然不允许登录
+     * （对应 US-13 验收标准 3，接口层返回错误码 2003）。
+     *
+     * <p>写法说明：用常量在前、变量在后的 {@code equals}，
+     * 即使 status 为 null 也不会抛空指针异常（写成 {@code status.equals(...)} 就会）。
+     *
+     * @return true 表示账号已停用
+     */
+    public boolean isDisabled() {
+        return STATUS_DISABLED.equals(status);
+    }
+
     /**
      * 输出对象内容，便于调试时直接 System.out.println(user) 查看数据。
      * 注意：这里不包含 password，避免密码泄漏到控制台或日志中。
      *
-     * @return 形如 User{id=1, username='teacher01', name='张老师', role='TEACHER'} 的字符串
+     * @return 形如 User{id=1, username='teacher01', name='张老师', role='TEACHER', status='ACTIVE'} 的字符串
      */
     @Override
     public String toString() {
-        return "User{id=" + id + ", username='" + username + "', name='" + name + "', role='" + role + "'}";
+        return "User{id=" + id + ", username='" + username + "', name='" + name
+                + "', role='" + role + "', status='" + status + "'}";
     }
 }

@@ -7,6 +7,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 用户表数据访问类：负责 {@code user} 表的所有 SQL 操作。
@@ -19,8 +21,10 @@ import java.sql.SQLException;
  * <p>【覆盖的需求】
  * <pre>
  *   REQ-01 注册：existsByUsername() 查重 + insert() 写入
- *   REQ-01 登录：findByUsername() 取出用户（含密码密文）后由业务层比对
+ *   REQ-01 登录：findByUsername() 取出用户（含密码密文与账号状态）后由业务层比对
  *   REQ-01 恢复登录状态：findById()
+ *   US-12 管理员查看全部账号及状态 -> findAll()
+ *   US-13 管理员停用 / 恢复账号    -> updateStatus()
  * </pre>
  *
  * <p>【本类用到的三种 JDBC 写法】
@@ -45,9 +49,10 @@ public class UserDAO {
 
     /**
      * 查询时统一使用的字段列表，避免各方法重复书写。
-     * 这里包含 password，因为登录校验必须用到密码密文。
+     * 这里包含 password，因为登录校验必须用到密码密文；
+     * 也包含 status（V2.0 新增），因为登录时要判断账号是否被停用。
      */
-    private static final String COLUMNS = "id, username, password, name, role";
+    private static final String COLUMNS = "id, username, password, name, role, status";
 
     // ==================================================================
     // 一、查询
@@ -143,14 +148,80 @@ public class UserDAO {
     // ==================================================================
 
     /**
+     * 查询全部用户（系统管理员查看账号列表，US-12）。
+     *
+     * <p>与 ActivityDAO.findAll() 一样：SQL 没有 {@code ?}，
+     * 所以 ResultSet 可以直接声明在 try 头部，用 while 逐行转换。
+     *
+     * <p>按 id 升序，保证每次刷新页面顺序稳定（否则数据库返回顺序不确定，
+     * 管理员会看到列表"跳来跳去"）。
+     *
+     * @return 用户列表；没有任何数据时返回空列表，而不是 null
+     */
+    public List<User> findAll() {
+        String sql = "SELECT " + COLUMNS + " FROM `user` ORDER BY id";
+
+        List<User> list = new ArrayList<>();
+
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+
+            while (rs.next()) {
+                list.add(mapRow(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    /**
+     * 修改账号状态（管理员停用 / 恢复账号，US-13）。
+     *
+     * <p>【为什么是改状态而不是删除账号】
+     * 账号与报名记录之间有外键关联（activity_registration.student_id 指向 user.id），
+     * 直接 DELETE 要么被外键拦住，要么会连带毁掉历史报名数据。
+     * 改状态既能立刻阻止登录，又完整保留数据，而且操作可逆。
+     *
+     * <p>参数顺序按 SQL 里的 {@code ?} 依次来：
+     * {@code SET status = ? WHERE id = ?} → 1=状态、2=用户id。
+     *
+     * @param id     用户id
+     * @param status 目标状态：{@link User#STATUS_ACTIVE} 或 {@link User#STATUS_DISABLED}
+     * @return 影响行数：1 表示修改成功，0 表示没有匹配的用户
+     */
+    public int updateStatus(Long id, String status) {
+        String sql = "UPDATE `user` SET status = ? WHERE id = ?";
+
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            // 第1个?是状态（String），第2个?是用户id（Long），别写反
+            ps.setString(1, status);
+            ps.setLong(2, id);
+
+            return ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    /**
      * 新增一个用户（注册，REQ-01）。
      *
      * <p>要点：
      * <ul>
      *   <li>字段列表里不写 id，因为它由数据库 AUTO_INCREMENT 自动生成；</li>
-     *   <li>4 个 {@code ?} 的编号顺序必须与字段列表一致：username、password、name、role；</li>
+     *   <li>{@code ?} 的编号顺序必须与字段列表一致：username、password、name、role、status；</li>
      *   <li>新增属于"增删改"，用 {@code executeUpdate()}，返回影响行数。</li>
      * </ul>
+     *
+     * <p>【status 的兜底处理】注册流程本来不该关心账号状态，
+     * 所以调用方很可能没有设置 status。这里如果发现它是 null，
+     * 就按 {@link User#STATUS_ACTIVE} 写入 —— 不能直接绑 null，
+     * 因为 user.status 是 NOT NULL 列，绑 null 会抛 SQLException。
      *
      * <p>注意：如果账号已存在，数据库的唯一约束 uk_user_username 会让本方法抛出
      * SQLIntegrityConstraintViolationException。业务层应当先调用
@@ -161,7 +232,7 @@ public class UserDAO {
      * @return 影响行数：1 表示新增成功，0 表示失败
      */
     public int insert(User user) {
-        String sql = "INSERT INTO `user` (username, password, name, role) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO `user` (username, password, name, role, status) VALUES (?, ?, ?, ?, ?)";
 
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -171,6 +242,8 @@ public class UserDAO {
             ps.setString(2, user.getPassword());
             ps.setString(3, user.getName());
             ps.setString(4, user.getRole());
+            // 调用方没设状态时按"可用"写入（三目运算符，避免把 null 绑进 NOT NULL 列）
+            ps.setString(5, user.getStatus() == null ? User.STATUS_ACTIVE : user.getStatus());
 
             return ps.executeUpdate();
         } catch (SQLException e) {
@@ -186,10 +259,13 @@ public class UserDAO {
     /**
      * 把结果集当前行转换成一个 User 对象。
      *
-     * <p>抽成私有方法，避免 findByUsername 和 findById 里重复写 5 行 set。
+     * <p>抽成私有方法，避免 findByUsername、findById、findAll 里重复写同样的 set。
      *
      * <p>括号里是<b>数据库列名</b>，赋值给的是<b>Java 属性</b>。
      * 本表两者同名，遇到 start_time 这类字段就需要转换，见 ActivityDAO.mapRow。
+     *
+     * <p>status 是 V2.0 新增字段，建表时是 NOT NULL DEFAULT 'ACTIVE'，
+     * 所以不必判空，直接 getString 即可。
      *
      * @param rs 已经指向某一行的结果集
      * @return 转换后的用户对象
@@ -202,6 +278,7 @@ public class UserDAO {
         user.setPassword(rs.getString("password"));
         user.setName(rs.getString("name"));
         user.setRole(rs.getString("role"));
+        user.setStatus(rs.getString("status"));
         return user;
     }
 }
