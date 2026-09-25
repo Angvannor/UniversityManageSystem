@@ -34,6 +34,12 @@ public class ApiResult {
     public static final int CODE_LOGIN_FAILED = 2001;
     /** 账号已被注册 */
     public static final int CODE_USERNAME_EXISTS = 2002;
+    /** V2.0 新增：账号已被管理员停用（密码是对的，但不允许登录） */
+    public static final int CODE_ACCOUNT_DISABLED = 2003;
+    /** V2.0 新增：报名记录当前状态不允许该操作（例如审核一条已取消的报名） */
+    public static final int CODE_REG_STATUS = 3005;
+    /** V2.0 新增：没有空余名额，无法递补 */
+    public static final int CODE_NO_VACANCY = 3006;
 
     /** 状态码：0 表示成功 */
     private final int code;

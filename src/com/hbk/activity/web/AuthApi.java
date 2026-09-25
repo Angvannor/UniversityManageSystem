@@ -62,6 +62,16 @@ public class AuthApi {
             return ApiResult.fail(ApiResult.CODE_LOGIN_FAILED, "账号或密码错误");
         }
 
+        // ⚠️【V2.0 新增：必须检查账号是否被停用】
+        // AuthService.login() 是【故意】不拦截停用账号的 —— 它要让我们能区分
+        // "密码错"(2001) 和"账号被停用"(2003) 两种失败。
+        // 因此【每一个调用 login() 的地方】都必须自己检查，
+        // 漏掉这一句，被管理员停用的账号就还能正常登录（US-13 会失效）。
+        if (user.isDisabled()) {
+            return ApiResult.fail(ApiResult.CODE_ACCOUNT_DISABLED,
+                    "账号已被停用，请联系系统管理员");
+        }
+
         String token = SessionManager.createToken(user.getId());
         System.out.println("      登录成功：" + user.getName() + "（" + user.getRole()
                 + "），当前在线会话数 " + SessionManager.size());
@@ -108,6 +118,10 @@ public class AuthApi {
         }
         if (message.contains("不能为空") || message.contains("长度")) {
             return ApiResult.CODE_PARAM;
+        }
+        // V2.0 新增：只允许注册学生或教师（防止有人把角色写成 ADMIN 自我提权）
+        if (message.contains("只能注册学生或教师")) {
+            return ApiResult.CODE_FORBIDDEN;
         }
         return ApiResult.CODE_BUSINESS;
     }

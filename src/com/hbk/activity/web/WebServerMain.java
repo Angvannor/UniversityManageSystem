@@ -8,9 +8,9 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
 
 /**
- * Web 接口服务启动类（V1.5 的新入口，与控制台入口 {@code ui.MainMenu} 并列）。
+ * Web 接口服务启动类（V2.0 的入口之一，与控制台入口 {@code ui.MainMenu} 并列）。
  *
- * <p>【V1.5 的结构】
+ * <p>【结构】
  * <pre>
  *   WebServerMain（本类） ──┐
  *                          ├──> Service ──> DAO ──> JDBC ──> MySQL
@@ -18,6 +18,14 @@ import java.util.concurrent.Executors;
  * </pre>
  * 两个入口共用同一套业务逻辑，这正是 V1.0 分层设计带来的好处：
  * 新增一种"界面"不需要动业务规则和数据访问。
+ *
+ * <p>【V2.0 的接口变化】从 14 个增加到 21 个：
+ * <ul>
+ *   <li>新增 3 个教师审核 / 递补接口（US-07、US-09）；</li>
+ *   <li>新增 4 个管理员接口（US-11 ~ US-13），全部要求 ADMIN 角色；</li>
+ *   <li>{@code GET /api/activities/{id}/registrations} 的返回结构
+ *       从"一个大列表"改为"按状态分组的三个列表 + 三个人数"。</li>
+ * </ul>
  *
  * <p>【为什么用 JDK 自带的 HttpServer】
  * {@code com.sun.net.httpserver.HttpServer} 是 JDK 内置的轻量 HTTP 服务器，
@@ -49,6 +57,7 @@ public class WebServerMain {
             AuthApi authApi = new AuthApi();
             ActivityApi activityApi = new ActivityApi();
             RegistrationApi registrationApi = new RegistrationApi();
+            AdminApi adminApi = new AdminApi();
 
             ApiRouter router = new ApiRouter(authService);
 
@@ -66,11 +75,23 @@ public class WebServerMain {
                     .put("/api/activities/{id}", activityApi::update)
                     .put("/api/activities/{id}/close", activityApi::close)
                     .delete("/api/activities/{id}", activityApi::delete)
-                    // 报名
+                    // 报名（学生）
                     .post("/api/activities/{id}/registrations", registrationApi::register)
                     .delete("/api/activities/{id}/registrations", registrationApi::cancel)
+                    .get("/api/registrations/mine", registrationApi::mine)
+                    // 报名名单与审核（教师）—— V2.0 新增三个审核/递补接口
                     .get("/api/activities/{id}/registrations", registrationApi::roster)
-                    .get("/api/registrations/mine", registrationApi::mine);
+                    .put("/api/activities/{id}/registrations/{studentId}/approve",
+                            registrationApi::approve)
+                    .put("/api/activities/{id}/registrations/{studentId}/reject",
+                            registrationApi::reject)
+                    .put("/api/activities/{id}/registrations/{studentId}/promote",
+                            registrationApi::promote)
+                    // 管理员（V2.0 新增，全部要求 ADMIN 角色）
+                    .get("/api/admin/activities", adminApi::activities)
+                    .get("/api/admin/users", adminApi::users)
+                    .put("/api/admin/users/{id}/disable", adminApi::disableUser)
+                    .put("/api/admin/users/{id}/enable", adminApi::enableUser);
 
             // ---------- 2. 创建并启动 HTTP 服务器 ----------
             HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
@@ -98,13 +119,13 @@ public class WebServerMain {
     private static void printBanner() {
         System.out.println("""
                 ==========================================================
-                  校园活动管理系统 V1.5 —— 接口服务已启动
+                  校园活动管理系统 V2.0 —— 接口服务已启动
                 ----------------------------------------------------------
                   接口前缀： http://localhost:8080/api
                   监听端口： 8080（前端 Vite 的 /api 代理指向这里）
                   处理线程： 8
                 ----------------------------------------------------------
-                  接口清单：
+                  接口清单（共 21 个）：
                     POST   /api/auth/register                注册
                     POST   /api/auth/login                   登录
                     POST   /api/auth/logout                  退出登录
@@ -119,8 +140,17 @@ public class WebServerMain {
                     DELETE /api/activities/{id}/registrations 取消报名（学生）
                     GET    /api/activities/{id}/registrations 报名名单（教师）
                     GET    /api/registrations/mine           我的报名（学生）
+                    PUT    .../registrations/{stu}/approve   审核通过（教师）
+                    PUT    .../registrations/{stu}/reject    审核驳回（教师）
+                    PUT    .../registrations/{stu}/promote   候补递补（教师）
+                    GET    /api/admin/activities             全部活动（管理员）
+                    GET    /api/admin/users                  全部账号（管理员）
+                    PUT    /api/admin/users/{id}/disable     停用账号（管理员）
+                    PUT    /api/admin/users/{id}/enable      恢复账号（管理员）
                 ----------------------------------------------------------
-                  演示账号：teacher01 / student01，密码均为 123456
+                  演示账号：teacher01 / student01 / student02 / student04
+                            admin01              密码均为 123456
+                            student03 已停用，用来验证停用账号不能登录
                   按 Ctrl+C 停止服务
                 ==========================================================
                 """);

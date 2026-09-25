@@ -1,6 +1,7 @@
 package com.hbk.activity.web;
 
 import com.hbk.activity.entity.Activity;
+import com.hbk.activity.entity.ActivityRegistration;
 import com.hbk.activity.entity.User;
 import com.hbk.activity.service.ActivityService;
 import com.hbk.activity.service.AuthService;
@@ -43,9 +44,9 @@ public class ActivityApi {
     /** 认证业务对象：按 id 查教师姓名 */
     private final AuthService authService = new AuthService();
 
-    /** 角色常量 */
-    private static final String ROLE_TEACHER = "TEACHER";
-    private static final String ROLE_STUDENT = "STUDENT";
+    // 角色取值统一用 User 里的常量，避免各处手写字符串抄错
+    private static final String ROLE_TEACHER = User.ROLE_TEACHER;
+    private static final String ROLE_STUDENT = User.ROLE_STUDENT;
 
     // ==================================================================
     // 一、查询
@@ -122,7 +123,17 @@ public class ActivityApi {
     /**
      * 发布活动（仅教师）。
      *
-     * @param ctx 请求上下文（请求体含 title / location / description / startTime / endTime / status）
+     * <p>请求体除 V1.5 的字段外，V2.0 新增两个可选字段：
+     * <ul>
+     *   <li>{@code capacity}：人数上限，<b>省略或传 null 表示不限制人数</b>；
+     *       注意不要传空字符串 ""，Gson 把 "" 转成 Integer 会失败；</li>
+     *   <li>{@code eligibility}：参加条件，自由文本，可省略。</li>
+     * </ul>
+     * 两个字段的合法性校验在 Service 层（`capacity <= 0` 拒绝、
+     * 纯空白的参加条件会被规范成 null）。
+     *
+     * @param ctx 请求上下文（请求体含 title / location / description /
+     *            startTime / endTime / capacity / eligibility）
      * @return 新活动 id
      */
     public ApiResult create(RequestContext ctx) {
@@ -198,12 +209,20 @@ public class ActivityApi {
     /**
      * 把活动实体组装成前端需要的视图对象。
      *
-     * <p>补充三个计算字段：
+     * <p>补充这些计算字段：
      * <ul>
      *   <li>teacherName：用 teacherId 反查用户表；</li>
-     *   <li>registeredCount：统计报名表中状态为 REGISTERED 的记录数；</li>
-     *   <li>joined：仅当查看者是学生时才有意义（教师看到的是 null）。</li>
+     *   <li>registeredCount：已报名人数（占位三态之和）；</li>
+     *   <li>confirmedCount：<b>已正式参加</b>人数（V2.0 新增）——
+     *       学生端要显示"限 N 人 · 已确定 M 人"，判断满没满也是比这个数；</li>
+     *   <li>waitlistedCount：候补人数（V2.0 新增）；</li>
+     *   <li>joined / myStatus / myStatusText：仅当查看者是学生时才有意义
+     *       （教师与管理员看到的是 null）。学生端据此显示
+     *       "待老师审核 / 候补中 / 已确认参加 / 未通过"，并决定报名按钮能不能点。</li>
      * </ul>
+     *
+     * <p>注意 {@code capacity} / {@code eligibility} 两个字段由
+     * {@code ActivityVo.from()} 直接带出来，这里不需要额外处理。
      *
      * @param activity 活动实体
      * @param viewer   当前登录用户，可为 null
@@ -214,10 +233,22 @@ public class ActivityApi {
 
         User teacher = authService.getById(activity.getTeacherId());
         vo.teacherName = teacher == null ? "未知" : teacher.getName();
+
         vo.registeredCount = registrationService.countRegistered(activity.getId());
+        vo.confirmedCount = registrationService.countByStatus(
+                activity.getId(), ActivityRegistration.STATUS_CONFIRMED);
+        vo.waitlistedCount = registrationService.countByStatus(
+                activity.getId(), ActivityRegistration.STATUS_WAITLISTED);
 
         if (viewer != null && ROLE_STUDENT.equals(viewer.getRole())) {
-            vo.joined = registrationService.hasRegistered(activity.getId(), viewer.getId());
+            // 当前学生自己的报名状态：可能是 null（从未报名）、待审核、候补、已确认、未通过、已取消
+            ActivityRegistration mine =
+                    registrationService.myRegistration(activity.getId(), viewer.getId());
+            vo.joined = mine != null && mine.occupiesSlot();
+            if (mine != null) {
+                vo.myStatus = mine.getStatus();
+                vo.myStatusText = ApiVo.statusText(mine.getStatus());
+            }
         }
         return vo;
     }
@@ -235,7 +266,9 @@ public class ActivityApi {
         if (message.contains("活动不存在")) {
             return ApiResult.CODE_NOT_FOUND;
         }
-        if (message.contains("不能为空") || message.contains("必须晚于")) {
+        // V2.0 新增：人数上限与参加条件的校验失败也属于"参数不合法"
+        if (message.contains("不能为空") || message.contains("必须晚于")
+                || message.contains("人数上限") || message.contains("参加条件不能超过")) {
             return ApiResult.CODE_PARAM;
         }
         return ApiResult.CODE_BUSINESS;

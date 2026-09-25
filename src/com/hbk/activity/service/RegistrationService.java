@@ -421,11 +421,55 @@ public class RegistrationService {
      * <p>只做转发。排序依据的说明见 {@code RegistrationDAO.findWaitlistOrderByReviewTime}：
      * 必须用 review_time（教师审核通过的时刻），不能用 register_time（学生报名的时刻）。
      *
+     * <p>注意它<b>不是</b>按 register_time 排的，所以不能拿
+     * {@link #rosterByStatus} 传 WAITLISTED 来代替。
+     *
      * @param activityId 活动id
-     * @return 候补记录列表，先进入候补的排前面
+     * @param teacherId  当前登录教师id（校验归属）
+     * @return 候补记录列表，先进入候补的排前面；无权或不存在时返回空列表
      */
-    public List<ActivityRegistration> waitlist(Long activityId) {
+    public List<ActivityRegistration> waitlist(Long activityId, Long teacherId) {
+        if (!belongsTo(activityId, teacherId)) {
+            return new ArrayList<>();
+        }
         return registrationDAO.findWaitlistOrderByReviewTime(activityId);
+    }
+
+    /**
+     * 按状态查询某个活动的报名名单（V2.0 新增，教师端名单分组展示）。
+     *
+     * <p>用它拼出「待审核」「正式参加」两个分组；「候补」分组要用
+     * {@link #waitlist}，因为候补有自己的排序规则。
+     *
+     * @param activityId 活动id
+     * @param teacherId  当前登录教师id（校验归属）
+     * @param status     报名状态，取值见 {@link ActivityRegistration} 的 STATUS_xxx 常量
+     * @return 该状态的报名记录，按报名时间正序；无权或不存在时返回空列表
+     */
+    public List<ActivityRegistration> rosterByStatus(Long activityId, Long teacherId, String status) {
+        if (!belongsTo(activityId, teacherId)) {
+            return new ArrayList<>();
+        }
+        return registrationDAO.findByActivityIdAndStatus(activityId, status);
+    }
+
+    /**
+     * 判断活动是否存在且属于该教师（内部辅助方法）。
+     *
+     * <p>抽出来的目的：名单、候补、审核、递补都要做同样的判断，
+     * 写一次可以保证各处判断逻辑完全一致（尤其别把 {@code equals} 写成 {@code ==}）。
+     *
+     * @param activityId 活动id
+     * @param teacherId  教师id
+     * @return true 表示活动存在且归该教师所有
+     */
+    private boolean belongsTo(Long activityId, Long teacherId) {
+        if (activityId == null || teacherId == null) {
+            return false;
+        }
+        Activity activity = activityDAO.findById(activityId);
+        // 包装类型 Long 比较数值必须用 equals，不能用 ==
+        return activity != null && teacherId.equals(activity.getTeacherId());
     }
 
     /**

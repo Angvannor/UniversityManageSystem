@@ -225,7 +225,7 @@ npm run dev
 
 ---
 
-## 五、接口清单（14 个）
+## 五、接口清单（21 个）
 
 所有接口返回统一结构：
 
@@ -242,31 +242,44 @@ npm run dev
 | POST | `/api/auth/logout` | 退出登录 | 已登录 |
 | GET | `/api/auth/me` | 当前登录用户 | 已登录 |
 | GET | `/api/activities` | 活动列表（支持 `keyword` / `status` / `onlyMine`） | 学生 + 教师 |
-| GET | `/api/activities/{id}` | 活动详情 | 学生 + 教师 |
-| POST | `/api/activities` | 发布活动 | 教师 |
+| GET | `/api/activities/{id}` | 活动详情（含参加条件、人数上限、我自己的报名状态） | 学生 + 教师 |
+| POST | `/api/activities` | 发布活动（可带 `capacity` / `eligibility`） | 教师 |
 | PUT | `/api/activities/{id}` | 修改活动 | 教师 |
 | PUT | `/api/activities/{id}/close` | 关闭报名 | 教师 |
 | DELETE | `/api/activities/{id}` | 删除活动 | 教师 |
-| POST | `/api/activities/{id}/registrations` | 报名活动 | 学生 |
+| POST | `/api/activities/{id}/registrations` | 报名活动（进入待审核） | 学生 |
 | DELETE | `/api/activities/{id}/registrations` | 取消报名 | 学生 |
 | GET | `/api/registrations/mine` | 我的报名 | 学生 |
-| GET | `/api/activities/{id}/registrations` | 活动报名名单 | 教师 |
+| GET | `/api/activities/{id}/registrations` | 活动报名名单（**按待审核／候补／正式参加分组**） | 教师 |
+| PUT | `/api/activities/{id}/registrations/{studentId}/approve` | 审核通过（有名额则正式参加，已满则转候补） | 教师 |
+| PUT | `/api/activities/{id}/registrations/{studentId}/reject` | 审核驳回 | 教师 |
+| PUT | `/api/activities/{id}/registrations/{studentId}/promote` | 候补递补 | 教师 |
+| GET | `/api/admin/activities` | 平台全部活动（只读监督） | 管理员 |
+| GET | `/api/admin/users` | 全部用户账号及状态（不含密码） | 管理员 |
+| PUT | `/api/admin/users/{id}/disable` | 停用账号 | 管理员 |
+| PUT | `/api/admin/users/{id}/enable` | 恢复账号 | 管理员 |
+
+> **管理员调不到报名相关接口**：报名接口只允许学生或教师，
+> 管理员请求一律返回 403（对应「管理员不介入具体报名事务」这条需求）。
 
 ### 错误码约定
 
 | 错误码 | 含义 |
 | --- | --- |
 | 0 | 成功 |
-| 1000 | 参数不合法 |
+| 1000 | 参数不合法（含人数上限非法、参加条件超长） |
 | 1001 | 业务处理失败（具体原因见 message） |
 | 401 | 未登录或登录状态失效（前端自动跳登录页） |
 | 403 | 当前角色无权执行该操作 |
 | 404 | 数据不存在 |
 | 2001 | 账号或密码错误 |
 | 2002 | 账号已被注册 |
+| 2003 | **账号已被停用**（密码正确但不允许登录） |
 | 3001 | 重复报名 |
 | 3003 | 活动当前不可报名 |
 | 3004 | 尚未报名，无法取消 |
+| 3005 | **报名记录当前状态不允许该操作**（如审核一条已确认的报名） |
+| 3006 | **没有空余名额，无法递补** |
 
 ---
 
@@ -358,11 +371,17 @@ npm run dev
 - [x] 数据库密码外置到 `config/db.properties`（技术债 T2）
 
 ### V2.0（实验二：需求演化的迭代版本，进行中）
-- [ ] 三个角色（学生 / 教师 / 系统管理员）的需求访谈
-- [ ] 访谈记录 → 用户故事 + 验收标准
-- [ ] 需求冲突消解、确定本轮范围
-- [ ] 影响分析（改了哪些文件、哪些没改、为什么）
-- [ ] 按新需求实现并回归测试（V1.5 的六项需求不得回归）
+- [x] 三个角色（学生 / 教师 / 系统管理员）的需求访谈（三轮共 22 条有效问答）
+- [x] 访谈记录 → 16 条用户故事 + 验收标准（`docs/作业2/V2.0需求基线.md`）
+- [x] 需求冲突消解、确定本轮范围（8 条最小假设）
+- [x] 影响分析（改了哪些文件、哪些没改、为什么）
+- [x] 阶段 1 数据库：三张表增量加字段（`status` / `capacity` / `eligibility` / `review_time`）
+- [x] 阶段 2 实体与 DAO：新增字段与查询方法（53 项断言）
+- [x] 阶段 3 业务层：报名状态机、审核、候补递补、管理员业务（61 项断言）
+- [x] 阶段 4 接口层：14 → 21 个接口、新增 3 个错误码（78 项断言）
+- [ ] 阶段 5 前端：教师端审核与递补、学生端状态展示、管理员端两个页面
+- [ ] 阶段 6 测试：扩展测试与 V1.5 回归
+- [ ] 阶段 7 收尾：报告、截图、打 tag `v2.0`
 - [ ] 实验二报告
 
 ---

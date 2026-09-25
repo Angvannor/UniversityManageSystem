@@ -181,7 +181,9 @@ public class RequestContext {
      * <p>对应报告「设计决策二」：接口层再做一次角色判断，
      * 不能只靠前端隐藏菜单。
      *
-     * @param role 要求的角色：STUDENT / TEACHER
+     * <p>取值用 {@link User} 里的 ROLE_xxx 常量，别直接写字符串。
+     *
+     * @param role 要求的角色：STUDENT / TEACHER / ADMIN
      * @throws ApiException 角色不符时抛 403
      */
     public void requireRole(String role) {
@@ -191,6 +193,28 @@ public class RequestContext {
         if (!role.equals(currentUser.getRole())) {
             throw new ApiException(ApiResult.CODE_FORBIDDEN, "当前角色无权执行该操作");
         }
+    }
+
+    /**
+     * 要求当前用户是系统管理员（V2.0 新增）。
+     *
+     * <p>等价于 {@code requireRole(User.ROLE_ADMIN)}，单独包一层是为了
+     * 调用处读起来更清楚，也避免把 {@code "ADMIN"} 这个字符串抄错。
+     *
+     * <p>【为什么管理员接口必须单独校验】
+     * 管理员能看到全平台的账号列表 —— 这是三类角色里权限最大的视图。
+     * 如果只靠前端隐藏菜单，学生只要用 Postman 直接请求就能拿到全部账号信息
+     * （对应 US-12 验收标准 3）。
+     *
+     * <p>【另一面：管理员不能调报名接口】
+     * REQ-V2-17 要求管理员不介入报名（US-14）。这一条不需要额外写方法 ——
+     * 报名相关接口都声明为 {@code requireRole(TEACHER)} 或
+     * {@code requireRole(STUDENT)}，管理员角色不在允许列表里，会被自动拒绝 403。
+     *
+     * @throws ApiException 未登录抛 401；不是管理员抛 403
+     */
+    public void requireAdmin() {
+        requireRole(User.ROLE_ADMIN);
     }
 
     /** @return JDK 原生请求对象 */
