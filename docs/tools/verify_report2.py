@@ -24,7 +24,15 @@ import zipfile
 import xml.etree.ElementTree as ET
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, "docs", "作业2", "实验二_V2.0_实验报告.docx")
+
+# 默认校验**填写后的模板**（这是实际要交的那一份）
+DEFAULT = os.path.join(ROOT, "docs", "作业2", "新建文件夹 (10)",
+                       "实验二_V2.0_实验报告模板.docx")
+# 同时生成、用于 git 留档的副本
+TRACKED = os.path.join(ROOT, "docs", "作业2", "实验二_V2.0_实验报告.docx")
+
+# 命令行可以指定要校验的文件
+OUT = sys.argv[1] if len(sys.argv) > 1 else DEFAULT
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
@@ -68,6 +76,7 @@ def main():
         print("   请先运行：python docs/tools/fill_report2.py")
         return 1
 
+    print(f"校验文件：{os.path.relpath(OUT, ROOT)}\n")
     failures = []
 
     # ---------- 1. docx 结构完整性 ----------

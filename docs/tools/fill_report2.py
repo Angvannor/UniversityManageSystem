@@ -29,8 +29,29 @@ import zipfile
 import xml.etree.ElementTree as ET
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-TPL = os.path.join(ROOT, "docs", "作业2", "新建文件夹 (10)", "实验二_V2.0_实验报告模板.docx")
-OUT = os.path.join(ROOT, "docs", "作业2", "实验二_V2.0_实验报告.docx")
+
+# 老师给的空白模板（直接填它，不另存新文件）
+TEMPLATE = os.path.join(ROOT, "docs", "作业2", "新建文件夹 (10)",
+                        "实验二_V2.0_实验报告模板.docx")
+
+# 空白原版的备份。第一次运行时从 TEMPLATE 复制一份，之后每次填写都**从它读**。
+#
+# 【为什么必须有这个备份】填写是"就地覆盖"模板，如果每次都从 TEMPLATE 读，
+# 第二次运行读到的就是上一次填好的版本 —— 表格行数已经变了，
+# 脚本会以为模板本来就有那么多行，结果越填越乱。
+# 固定从空白原版读，才能保证反复运行的结果完全一致。
+BLANK = os.path.join(ROOT, "docs", "作业2", "实验二_V2.0_实验报告模板_空白原版.docx")
+
+# 填写结果写回模板本身（文件名与老师给的一致，直接交这一份）
+OUT = TEMPLATE
+
+# 同时留一份在 git 里。
+#
+# 【为什么要有这一份】老师给的模板放在「新建文件夹 (10)」里，那个目录
+# 按本组的约定不纳入版本控制（属于课程材料）。如果只写模板，
+# 报告内容就完全不在仓库里，无法通过 git 追溯。
+# 两份内容由同一个脚本、同一次运行写出，不会出现不一致。
+OUT_TRACKED = os.path.join(ROOT, "docs", "作业2", "实验二_V2.0_实验报告.docx")
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 XML_SPACE = "{http://www.w3.org/XML/1998/namespace}space"
@@ -881,15 +902,38 @@ def find_tables(body):
 def main():
     check_only = "--check" in sys.argv
 
-    with zipfile.ZipFile(TPL) as z:
+    # ---------- 准备空白原版 ----------
+    if not os.path.exists(BLANK):
+        if not os.path.exists(TEMPLATE):
+            print(f"❌ 找不到模板：{TEMPLATE}")
+            return
+        shutil.copyfile(TEMPLATE, BLANK)
+        print(f"已备份空白原版：{os.path.relpath(BLANK, ROOT)}")
+    source = BLANK
+
+    with zipfile.ZipFile(source) as z:
         entries = {name: z.read(name) for name in z.namelist()}
 
     xml = entries["word/document.xml"].decode("utf-8")
 
-    # 注册命名空间前缀，避免序列化时变成 ns0:
-    root_tag_end = xml.index(">")
-    for prefix, uri in re.findall(r'xmlns:([A-Za-z0-9]+)="([^"]+)"', xml[:root_tag_end]):
+    # 注册命名空间前缀，让输出仍然是 w: / mc: / w14: 这些 Word 习惯的前缀。
+    #
+    # 【这里踩过一个坑】最初的写法是 xml.index(">") 取到第一个 ">" 就截断，
+    # 但第一个 ">" 是 XML 声明 `<?xml ...?>` 的结尾，根本不含 xmlns 声明 ——
+    # 结果所有前缀都退化成 ns0: ns1:，而 mc:Ignorable="w14 w15 wp14"
+    # 里引用的前缀又没有被声明。Word 通常还能打开，但这不是规范写法，
+    # 换 Office 版本就容易出问题。
+    # 正确做法：定位**根元素的起始标签**，从里面取 xmlns。
+    root_match = re.search(r"<w:document\b[^>]*>", xml)
+    root_tag = root_match.group(0) if root_match else ""
+    ns_decls = re.findall(r'xmlns:([A-Za-z0-9]+)="([^"]+)"', root_tag)
+    default_ns = re.search(r'\sxmlns="([^"]+)"', root_tag)
+    if default_ns:
+        ET.register_namespace("", default_ns.group(1))
+    for prefix, uri in ns_decls:
         ET.register_namespace(prefix, uri)
+    print(f"已注册 {len(ns_decls)} 个命名空间前缀"
+          + ("（含默认命名空间）" if default_ns else ""))
 
     root = ET.fromstring(xml)
     body = root.find(qn("body"))
@@ -1097,11 +1141,19 @@ def main():
         return
 
     entries["word/document.xml"] = new_xml
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED) as z:
-        for name, data in entries.items():
-            z.writestr(name, data)
-    print(f"\n已写出：{OUT}")
+    for target in (OUT, OUT_TRACKED):
+        rel = os.path.relpath(target, ROOT)
+        try:
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as z:
+                for name, data in entries.items():
+                    z.writestr(name, data)
+            print(f"已写出：{rel}")
+        except PermissionError:
+            # 最常见的原因是这个 docx 正在 Word 里打开着 —— Windows 会锁住文件。
+            # 这种情况不应该让整个脚本失败：模板那一份才是要交的，已经写好了。
+            print(f"⚠️ 写入失败（文件被占用，可能正在 Word 中打开）：{rel}")
+            print("   请关闭该文档后重新运行本脚本。")
 
 
 if __name__ == "__main__":
