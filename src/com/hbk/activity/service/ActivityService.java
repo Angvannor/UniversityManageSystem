@@ -44,8 +44,14 @@ public class ActivityService {
      */
     private final RegistrationDAO registrationDAO = new RegistrationDAO();
 
-    /** 活动状态常量：开放报名 */
+    /** 活动状态常量：OPEN 开放报名 */
     private static final String STATUS_OPEN = "OPEN";
+
+    /**
+     * 参加条件的最大字数，必须与 db/schema.sql 中 {@code eligibility VARCHAR(500)} 一致。
+     * 在业务层先拦一道，避免超长文本提交到数据库才报错。
+     */
+    private static final int MAX_ELIGIBILITY_LENGTH = 500;
 
     /** 活动状态常量：已关闭 */
     private static final String STATUS_CLOSED = "CLOSED";
@@ -86,6 +92,46 @@ public class ActivityService {
         return null;
     }
 
+    /**
+     * 校验人数上限与参加条件，并顺手把参加条件规范化（V2.0 新增，对应 US-05 / US-06）。
+     *
+     * <p>规则说明：
+     * <ul>
+     *   <li><b>人数上限留空 = 不限制人数</b>（数据库里存 NULL）。
+     *       所以 capacity 为 null 是合法的，只有"填了但不是正整数"才算错。
+     *       注意判断时只能用 {@code capacity != null && capacity <= 0}，
+     *       不能直接写 {@code capacity <= 0} —— 那样 null 会自动拆箱，抛空指针异常。</li>
+     *   <li><b>参加条件留空 = 无特殊条件</b>。如果用户只输入了空格，
+     *       这里会把它规范成 null，避免数据库里存进一堆空格 ——
+     *       那样界面上会以为"有条件"，但显示出来是一片空白，很困惑。</li>
+     *   <li>参加条件是自由文本，本轮只限制长度，不做结构化校验（最小假设 A3）。</li>
+     * </ul>
+     *
+     * <p>本方法会<b>修改入参对象</b>（把参加条件 trim 并可能置为 null），
+     * 这是有意为之：校验通过后调用方直接拿去写库，不必再处理一遍。
+     *
+     * @param activity 待校验的活动对象
+     * @return 校验通过返回 null；否则返回失败原因
+     */
+    private String checkAndNormalizeCapacity(Activity activity) {
+        Integer capacity = activity.getCapacity();
+        // 先判 null 再比较：capacity 是包装类型 Integer，直接和 0 比较会因自动拆箱而抛异常
+        if (capacity != null && capacity <= 0) {
+            return "人数上限必须是大于 0 的整数，留空表示不限制人数";
+        }
+
+        String eligibility = activity.getEligibility();
+        if (eligibility != null) {
+            String trimmed = eligibility.trim();
+            if (trimmed.length() > MAX_ELIGIBILITY_LENGTH) {
+                return "参加条件不能超过 " + MAX_ELIGIBILITY_LENGTH + " 个字";
+            }
+            // 全空白视为"没有填写"，存 null 而不是空字符串
+            activity.setEligibility(trimmed.isEmpty() ? null : trimmed);
+        }
+        return null;
+    }
+
     // ==================================================================
     // 二、发布与管理（教师，REQ-05）
     // ==================================================================
@@ -120,12 +166,18 @@ public class ActivityService {
             return "活动结束时间必须晚于开始时间";
         }
 
-        // 3. 状态兜底：菜单层没设置时默认允许报名
+        // 3. 人数上限与参加条件校验（V2.0 新增）
+        String limitError = checkAndNormalizeCapacity(activity);
+        if (limitError != null) {
+            return limitError;
+        }
+
+        // 4. 状态兜底：菜单层没设置时默认允许报名
         if (activity.getStatus() == null || activity.getStatus().trim().isEmpty()) {
             activity.setStatus(STATUS_OPEN);
         }
 
-        // 4. 交给 DAO 写库
+        // 5. 交给 DAO 写库
         int rows = activityDAO.insert(activity);
         return rows > 0 ? null : "发布活动失败，请稍后重试";
     }
@@ -151,6 +203,12 @@ public class ActivityService {
         if (activity.getStartTime() != null && activity.getEndTime() != null
                 && !activity.getEndTime().isAfter(activity.getStartTime())) {
             return "活动结束时间必须晚于开始时间";
+        }
+
+        // 人数上限与参加条件校验（V2.0 新增，与 publish 用同一套规则）
+        String limitError = checkAndNormalizeCapacity(activity);
+        if (limitError != null) {
+            return limitError;
         }
 
         int rows = activityDAO.update(activity);

@@ -55,6 +55,8 @@ public class MainMenu {
     /** 角色常量，与数据库 user.role 的取值一致 */
     private static final String ROLE_TEACHER = "TEACHER";
     private static final String ROLE_STUDENT = "STUDENT";
+    /** V2.0 新增：系统管理员（控制台不提供该角色的功能，仅用于识别与提示） */
+    private static final String ROLE_ADMIN = "ADMIN";
 
     // 三个业务对象：菜单层需要的全部功能都在这里
     private static final AuthService AUTH_SERVICE = new AuthService();
@@ -90,8 +92,14 @@ public class MainMenu {
                 case 2: {
                     User user = doLogin();
                     if (user != null) {
-                        // 按角色进入不同菜单：这是"学生与教师权限不同"这条约束在界面上的体现
-                        if (ROLE_TEACHER.equals(user.getRole())) {
+                        // 按角色进入不同菜单：这是"各角色权限不同"这条约束在界面上的体现。
+                        // V2.0 新增了 ADMIN 角色，但控制台没有实现管理员界面 ——
+                        // 必须显式判断，不能写成 if-教师-else-学生，
+                        // 否则管理员会被当成学生进入学生菜单（权限串位）。
+                        if (ROLE_ADMIN.equals(user.getRole())) {
+                            System.out.println("控制台界面暂不提供系统管理员功能，");
+                            System.out.println("请使用 Web 界面（build.bat web + 前端）登录管理员账号。");
+                        } else if (ROLE_TEACHER.equals(user.getRole())) {
                             teacherMenu(user);
                         } else {
                             studentMenu(user);
@@ -150,6 +158,15 @@ public class MainMenu {
             System.out.println("登录失败：账号或密码错误");
             return null;
         }
+
+        // V2.0 新增：密码正确还不算数，必须再确认账号没有被管理员停用。
+        // 注意 AuthService.login() 有意不拦截停用账号（好让接口层区分错误码 2001 与 2003），
+        // 所以【每一个调用 login() 的地方】都要自己检查，漏了这一句停用就失效了。
+        if (user.isDisabled()) {
+            System.out.println("登录失败：账号已被停用，请联系系统管理员");
+            return null;
+        }
+
         System.out.println("登录成功，欢迎 " + user.getName()
                 + "（" + roleText(user.getRole()) + "）");
         return user;
@@ -629,15 +646,19 @@ public class MainMenu {
     }
 
     /**
-     * 统计名单里状态为"已报名"的记录数。
+     * 统计名单里"占位"的报名记录数（待审核 + 候补 + 正式参加）。
+     *
+     * <p>V2.0 起"报名"不再是一个状态，所以这里不能只数某一种状态，
+     * 统一交给实体上的 {@code occupiesSlot()} 判断，
+     * 免得以后状态再变时这里被改漏。
      *
      * @param roster 报名名单
-     * @return 有效报名人数
+     * @return 已报名人数（不含已取消与未通过）
      */
     private static int countRegistered(List<ActivityRegistration> roster) {
         int count = 0;
         for (ActivityRegistration r : roster) {
-            if ("REGISTERED".equals(r.getStatus())) {
+            if (r.occupiesSlot()) {
                 count++;
             }
         }
@@ -648,6 +669,8 @@ public class MainMenu {
      * 把数据库里的英文状态转换成界面上的中文。
      *
      * <p>数据库存英文（便于程序判断），界面显示中文（便于用户理解）。
+     * V2.0 把报名状态从 2 种扩展到了 5 种，这里必须同步，
+     * 否则新状态会直接显示成英文原值（走 default 分支）。
      *
      * @param status 状态英文值
      * @return 中文说明
@@ -657,10 +680,15 @@ public class MainMenu {
             return "未知";
         }
         return switch (status) {
+            // 活动状态
             case "OPEN" -> "可报名";
             case "CLOSED" -> "已关闭";
             case "FINISHED" -> "已结束";
-            case "REGISTERED" -> "已报名";
+            // 报名状态（V2.0 的五种）
+            case "PENDING_REVIEW" -> "待老师审核";
+            case "CONFIRMED" -> "已确认参加";
+            case "WAITLISTED" -> "候补中";
+            case "REJECTED" -> "未通过";
             case "CANCELLED" -> "已取消";
             default -> status;
         };
@@ -669,10 +697,17 @@ public class MainMenu {
     /**
      * 把用户角色转换成中文。
      *
+     * <p>V2.0 新增了 ADMIN 角色，这里必须一起处理 ——
+     * 原来的写法是"是教师就显示教师，否则显示学生"，
+     * 那样管理员会被显示成"学生"，虽然只是文案错误但会误导使用者。
+     *
      * @param role 角色英文值
      * @return 中文说明
      */
     private static String roleText(String role) {
+        if (ROLE_ADMIN.equals(role)) {
+            return "系统管理员";
+        }
         return ROLE_TEACHER.equals(role) ? "教师" : "学生";
     }
 

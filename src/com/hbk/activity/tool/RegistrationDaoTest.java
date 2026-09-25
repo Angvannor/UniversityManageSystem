@@ -56,9 +56,11 @@ public class RegistrationDaoTest {
         activity.setTeacherId(TEACHER_ID);
         activityDAO.insert(activity);
 
-        // insert 拿不到自增主键，从列表里取刚插入的那条
-        List<Activity> activities = activityDAO.findByTeacherId(TEACHER_ID);
-        Long activityId = activities.get(activities.size() - 1).getId();
+        // ★ 用 insert() 回填的自增主键，不要用「取列表最后一条」的办法：
+        //   findByTeacherId() 是【按 start_time 排序】的，"最后一条"很可能是别的活动。
+        //   这个坑真的踩过：曾经因此把报名记录写到了演示活动「校园歌手大赛」上，
+        //   并在清理时误删了李同学在该活动的正式参加记录。
+        Long activityId = activity.getId();
         System.out.println("[0] 已创建测试活动 id = " + activityId);
 
         try {
@@ -68,10 +70,12 @@ public class RegistrationDaoTest {
             System.out.println("    当前报名人数: " + dao.countRegistered(activityId) + "（期望 0）");
 
             // ---------- 2. 报名：新增记录 ----------
+            // V2.0 起报名后的初始状态是「待审核」（PENDING_REVIEW），
+            // 它和候补、正式参加一样都属于"占位"，会被 countRegistered() 计入。
             ActivityRegistration registration = new ActivityRegistration();
             registration.setActivityId(activityId);
             registration.setStudentId(STUDENT_ID);
-            registration.setStatus("REGISTERED");
+            registration.setStatus(ActivityRegistration.STATUS_PENDING_REVIEW);
             int insertRows = dao.insert(registration);
             System.out.println("[2] insert() 影响行数: " + insertRows + "（期望 1）");
 
@@ -81,14 +85,17 @@ public class RegistrationDaoTest {
             System.out.println("    当前报名人数: " + dao.countRegistered(activityId) + "（期望 1）");
 
             // ---------- 4. 取消报名：状态改为 CANCELLED，人数回到 0 ----------
-            int cancelRows = dao.updateStatus(activityId, STUDENT_ID, "CANCELLED");
+            int cancelRows = dao.updateStatus(activityId, STUDENT_ID, ActivityRegistration.STATUS_CANCELLED);
             System.out.println("[4] updateStatus(CANCELLED) 影响行数: " + cancelRows + "（期望 1）");
             System.out.println("    取消后记录状态: " + dao.findByActivityAndStudent(activityId, STUDENT_ID).getStatus());
             System.out.println("    取消后报名人数: " + dao.countRegistered(activityId) + "（期望 0）");
 
-            // ---------- 5. 重新报名：复用同一行，状态改回 REGISTERED ----------
-            int reRows = dao.updateStatus(activityId, STUDENT_ID, "REGISTERED");
-            System.out.println("[5] updateStatus(REGISTERED) 影响行数: " + reRows + "（期望 1）");
+            // ---------- 5. 重新报名：复用同一行，状态改回待审核 ----------
+            // 用 updateStatusAndReviewTime 而不是 updateStatus，
+            // 因为重新报名必须把上一轮的 review_time 清空（传 null）。
+            int reRows = dao.updateStatusAndReviewTime(activityId, STUDENT_ID,
+                    ActivityRegistration.STATUS_PENDING_REVIEW, null);
+            System.out.println("[5] 重新报名（复用原行）影响行数: " + reRows + "（期望 1）");
             System.out.println("    重新报名后人数: " + dao.countRegistered(activityId) + "（期望 1）");
 
             // ---------- 6. 我的报名 / 教师查看名单 ----------

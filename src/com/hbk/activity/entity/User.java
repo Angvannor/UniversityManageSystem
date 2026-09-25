@@ -55,6 +55,21 @@ public class User {
     private String status;
 
     // ------------------------------------------------------------------
+    // 角色常量：取值必须与 db/schema.sql 中 user.role 的注释完全一致。
+    // 注意只有 STUDENT 和 TEACHER 允许自助注册，ADMIN 只能由数据库脚本预置
+    // （否则任何人都能注册一个管理员账号，属于权限提升漏洞）。
+    // ------------------------------------------------------------------
+
+    /** 角色：学生 */
+    public static final String ROLE_STUDENT = "STUDENT";
+
+    /** 角色：活动组织教师 */
+    public static final String ROLE_TEACHER = "TEACHER";
+
+    /** 角色：系统管理员（只能预置，不开放注册） */
+    public static final String ROLE_ADMIN = "ADMIN";
+
+    // ------------------------------------------------------------------
     // 账号状态常量：取值必须与 db/schema.sql 中 user.status 的注释完全一致。
     // 抽成常量而不是在各处直接写字符串，可以避免拼错字母造成的隐蔽 bug
     // （例如把 DISABLED 写成 DISBALED，编译能过但判断永远不成立）。

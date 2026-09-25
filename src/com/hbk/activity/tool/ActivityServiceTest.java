@@ -176,10 +176,13 @@ public class ActivityServiceTest {
         System.out.println("\n[删除限制]");
 
         // 先让一名学生报名
+        // 注意状态要用 V2.0 的有效取值：countRegistered() 统计的是"占位"的三种状态
+        // （待审核 / 候补 / 正式参加），原来写的 "REGISTERED" 已经不存在了，
+        // 用它插进去的记录不算占位，删除保护就会失效。
         ActivityRegistration registration = new ActivityRegistration();
         registration.setActivityId(activityId);
         registration.setStudentId(STUDENT_ID);
-        registration.setStatus("REGISTERED");
+        registration.setStatus(ActivityRegistration.STATUS_CONFIRMED);
         registrationDAO.insert(registration);
 
         String deleteWithRegistration = service.delete(activityId, TEACHER_ID);
@@ -187,7 +190,7 @@ public class ActivityServiceTest {
         System.out.println("       提示信息: " + deleteWithRegistration);
 
         // 学生取消报名后，人数归零，此时可以删除
-        registrationDAO.updateStatus(activityId, STUDENT_ID, "CANCELLED");
+        registrationDAO.updateStatus(activityId, STUDENT_ID, ActivityRegistration.STATUS_CANCELLED);
         check("取消报名后人数归零", registrationDAO.countRegistered(activityId) == 0);
 
         String deleteResult = service.delete(activityId, TEACHER_ID);

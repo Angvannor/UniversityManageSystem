@@ -56,9 +56,12 @@ public class ActivityDaoTest {
             System.out.println("新增失败，后续测试无法继续");
             return;
         }
-        // insert() 只返回影响行数，拿不到自增主键，这里从列表里取最后一条的 id
-        Activity created = afterInsert.get(afterInsert.size() - 1);
-        Long newId = created.getId();
+        // ★ 用 insert() 回填的自增主键来定位刚插入的那一行。
+        //   千万不要用「取列表最后一条」的办法：findAll() 是【按 start_time 排序】的，
+        //   不是按 id 排序，所以"最后一条"很可能是别的活动。
+        //   这个坑真的踩过：曾经因此把演示活动「书法体验课」改名、关闭并误删。
+        Long newId = activity.getId();
+        Activity created = dao.findById(newId);
         System.out.println("    新活动 id = " + newId + "，内容: " + created);
 
         // ---------- 4. 按 id 查单条 ----------
